@@ -1,9 +1,12 @@
 from scapy.all import *
-import csv 
+import csv
+
+from scapy.layers.inet import IP, TCP, UDP
+from scapy.layers.l2 import Ether
 
 header = ['Packet ID', 'TIME', 'Size', 'eth.src', 'eth.dst', 'IP.src', 'IP.dst', 'IP.proto', 'port.src', 'port.dst']
 
-scapy_cap = rdpcap(r'/home/wenyao/dataset/16-10-01.pcap')
+scapy_cap = rdpcap(r'21Feb.pcap')
 pid = 1
 
 with open('test.csv', 'w', encoding='UTF8', newline='') as f:
