@@ -2,6 +2,7 @@ import csv
 import os
 import pandas as pd
 
+
 def getAvgSize(total, count):
     if count == 0:
         return 0
@@ -9,7 +10,7 @@ def getAvgSize(total, count):
         return int(total/count)  
 
 
-def generateFlow(file): 
+def generateFlow(file):
     Gateway = "14:cc:20:51:33:ea"
     devMAC = "44:65:0d:56:cc:d3"
     header = ['ID',  
