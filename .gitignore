@@ -1,4 +1,4 @@
 # ignore pcap
 21Feb.pcap
-*.csv
+test.csv
 .idea
