@@ -1,9 +1,8 @@
 import csv 
 import pandas as pd
 
-def packet_frequency():
-    addr = "minzhao.csv"
-    data = pd.read_csv(addr)
+def packet_frequency(filename):
+    data = pd.read_csv(filename)
 
     packet_count_list = []
     packet_count = 0
