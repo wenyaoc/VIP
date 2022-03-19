@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.fftpack import fft, ifft
+from scipy.fftpack import fft, ifft, fftfreq
 import pandas as pd
 
 # Import csv file
@@ -16,9 +16,10 @@ import pandas as pd
 #plt.show()
 
 # FFT
-# number of sample points
+
 import packet_rate_fft
 
+#number of sample points
 N = 62
 # frequency of signal (in second)
 T = 1
@@ -30,9 +31,9 @@ x = np.linspace(0, N*T, N)
 fq = packet_rate_fft.packet_frequency()
 yf = fft(fq)
 # create new x-axis: frequency from signal
-xf = np.linspace(0.0, 1.0/(2.0*T), N//2)
+xf = fftfreq(N,T)[:N//2]
 # plot results
-plt.plot(xf, yf[0:N//2], label = 'signal')
+plt.plot(xf, 2.0/N*np.abs(yf[0:N//2]), label = 'signal')
 plt.grid()
 plt.xlabel('Frequency (secs)')
 plt.ylabel(r'Spectral Amplitude')
