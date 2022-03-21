@@ -19,6 +19,7 @@ import pandas as pd
 
 import packet_rate_fft
 
+
 #number of sample points
 N = 62
 # frequency of signal (in second)
@@ -28,15 +29,35 @@ x = np.linspace(0, N*T, N)
 # create array that corresponds to values in signal
 # y = df
 # perform FFT on signal
-fq = packet_rate_fft.packet_frequency("dataset/ns1.csv")
+fq = packet_rate_fft.packet_frequency("dataset/endhosts/minzhao.csv")
 yf = fft(fq)
 # create new x-axis: frequency from signal
 xf = fftfreq(N, T)[:N//2]
 # plot results
-plt.plot(xf, 2.0/N*np.abs(yf[0:N//2]), label = 'signal')
+plt.stem(xf, 2.0/N*np.abs(yf[0:N//2]), label = 'signal')
 plt.grid()
-plt.xlabel('Frequency (secs)')
-plt.ylabel(r'Spectral Amplitude')
+plt.xlabel('Frequency (Hz)')
+plt.ylabel(r'Amplitude')
 plt.legend(loc=1)
-plt.savefig('packet_fft_ns1.jpg')
+plt.savefig('packet_fft_minzhao.jpg')
 plt.show()
+
+
+"""
+fq = packet_rate_fft.packet_frequency("dataset/ns1.csv")
+print(fq)
+yf = fft(fq)
+N = len(yf)
+n = np.arange(N)
+T = N/10
+freq = n/T
+
+plt.figure(figsize = (12, 6))
+plt.subplot(121)
+
+plt.stem(freq, np.abs(yf), linefmt='b', markerfmt=" ", basefmt="-b")
+plt.xlabel('Freq(Hz)')
+plt.ylabel("Amplitude")
+plt.xlim(0, 10)
+plt.savefig('packet_fft_ns1_dis.jpg')
+"""
