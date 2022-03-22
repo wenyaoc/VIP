@@ -29,7 +29,7 @@ x = np.linspace(0, N*T, N)
 # create array that corresponds to values in signal
 # y = df
 # perform FFT on signal
-fq = packet_rate_fft.packet_frequency("dataset/endhosts/minzhao.csv")
+fq = packet_rate_fft.packet_frequency("dataset/nameservers/ns2.csv")
 yf = fft(fq)
 # create new x-axis: frequency from signal
 xf = fftfreq(N, T)[:N//2]
@@ -39,7 +39,7 @@ plt.grid()
 plt.xlabel('Frequency (Hz)')
 plt.ylabel(r'Amplitude')
 plt.legend(loc=1)
-plt.savefig('packet_fft_minzhao.jpg')
+plt.savefig('packet_fft_ns2.jpg')
 plt.show()
 
 
@@ -59,5 +59,5 @@ plt.stem(freq, np.abs(yf), linefmt='b', markerfmt=" ", basefmt="-b")
 plt.xlabel('Freq(Hz)')
 plt.ylabel("Amplitude")
 plt.xlim(0, 10)
-plt.savefig('packet_fft_ns1_dis.jpg')
+plt.savefig('packet_fft_desktop_dis.jpg')
 """
