@@ -2,10 +2,10 @@ import csv
 import pandas as pd
 
 header = ['Packet ID', 'TIME', 'Size', 'eth.src', 'eth.dst', 'IP.src', 'IP.dst', 'IP.proto', 'port.src', 'port.dst']
-devIP = "149.171.144.58"
-data = pd.read_csv("feb21.csv")
+devIP = "149.171.0.34"
+data = pd.read_csv("21Feb.csv")
 
-with open('/home/wenyao/VIP/minzhao.csv', 'w', encoding='UTF8', newline='') as f:
+with open('/home/wenyao/VIP/hosproxy_21Feb.csv', 'w', encoding='UTF8', newline='') as f:
     writer = csv.writer(f)
     # write the header
     writer.writerow(header)

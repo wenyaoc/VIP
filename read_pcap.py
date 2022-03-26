@@ -6,10 +6,10 @@ from scapy.layers.l2 import Ether
 
 header = ['Packet ID', 'TIME', 'Size', 'eth.src', 'eth.dst', 'IP.src', 'IP.dst', 'IP.proto', 'port.src', 'port.dst']
 
-scapy_cap = rdpcap(r'21Feb.pcap')
+scapy_cap = rdpcap(r'23Mar.pcap')
 pid = 1
 
-with open('test.csv', 'w', encoding='UTF8', newline='') as f:
+with open('23Mar.csv', 'w', encoding='UTF8', newline='') as f:
     writer = csv.writer(f)
     # write the header
     writer.writerow(header)
