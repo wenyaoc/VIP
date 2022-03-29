@@ -29,7 +29,7 @@ x = np.linspace(0, N*T, N)
 # create array that corresponds to values in signal
 # y = df
 # perform FFT on signal
-fq = packet_rate_fft.packet_frequency("dataset/webproxy/library.csv")
+fq = packet_rate_fft.packet_frequency("dataset/endhosts/desktop.csv")
 yf = fft(fq)
 # create new x-axis: frequency from signal
 xf = fftfreq(N, T)[:N//2]
@@ -39,7 +39,7 @@ plt.grid()
 plt.xlabel('Frequency (Hz)')
 plt.ylabel(r'Amplitude')
 plt.legend(loc=1)
-plt.savefig('packet_fft_library.jpg')
+plt.savefig('packet_fft_desktop.jpg')
 plt.show()
 
 
