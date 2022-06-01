@@ -32,7 +32,7 @@ def plot_piechart(dic, chartName, threshold):
 
 
 devIP = "149.171.99.123"
-data = pd.read_csv("../data/myunsw_23Mar.csv")
+data = pd.read_csv("./data/myunsw_23Mar.csv")
 #header = ['Packet ID', 'TIME', 'Size', 'eth.src', 'eth.dst', 
 #          'IP.src', 'IP.dst', 'IP.proto', 'port.src', 'port.dst']
 
@@ -68,8 +68,8 @@ for index, row in data.iterrows():
         print("port_out_occurrences:")
         print(port_out_occurrences)
 
-        plot_piechart(ip_external_in_occurrences, f'myunsw23_ip_{currTime}_in.jpg', 700)
-        plot_piechart(ip_external_out_occurrences, f'myunsw23_ip_{currTime}_out.jpg', 700)
+        plot_piechart(ip_external_in_occurrences, f'./output/myunsw23_ip_{currTime}_in.jpg', 700)
+        plot_piechart(ip_external_out_occurrences, f'./output/myunsw23_ip_{currTime}_out.jpg', 700)
         #plot_piechart(port_in_occurrences, f'myunsw23_port_in.jpg', 0)
         #plot_piechart(port_out_occurrences, f'myunsw23_port_out.jpg', 0)
 
