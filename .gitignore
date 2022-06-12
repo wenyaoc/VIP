@@ -1,5 +1,7 @@
 # ignore pcap
-*.pcap
-data/*.csv
-.idea
 *.jpg
+*.pcap
+*.csv
+output/
+data/
+.idea
