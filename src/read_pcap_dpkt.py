@@ -62,7 +62,28 @@ def plot_piechart(dic, chartName, threshold):
     plt.show()
 
 
+def analyze_features():
+    # packet rate(incoming/outgoing/bidirection)
+    
 
+
+    # byte rate(incoming/outgoing/bidirection)
+
+    
+    
+    # average packet size(incoming/outgoing)
+
+
+    
+    # ranked external IPs(incoming/outgoing, #packet/bytes)
+
+
+    # ports(incoming/outgoing)
+
+
+    # protocol(bidirection)
+ 
+    None
 
 class Send_Data(Thread):
     def run(self):
@@ -84,16 +105,25 @@ def update_local_database():
     
 
     for ip in target_ips:
+        # create missing entry
+        if (p_ip_src == ip or p_ip_dst == ip) and packet_stat.get(ip) == None:
+            packet_stat[ip] = {}
+            packet_stat[ip]["incoming traffic"] = {}
+            packet_stat[ip]["incoming traffic"]["#packet"] = 0
+            packet_stat[ip]["incoming traffic"]["traffic in bytes"] = 0
+            packet_stat[ip]["outgoing traffic"] = {}
+            packet_stat[ip]["outgoing traffic"]["#packet"] = 0
+            packet_stat[ip]["outgoing traffic"]["traffic in bytes"] = 0
+            packet_stat[ip]["incoming external ips"] = {}
+            packet_stat[ip]["outgoing external ips"] = {}
+            packet_stat[ip]["incoming ports"] = {}
+            packet_stat[ip]["outgoing ports"] = {}
+            packet_stat[ip]["protocols"] = {}
+
         if p_ip_src == ip:
             # outgoing packet
-            # create all the missing entries
-            if packet_stat.get(ip) == None:
-                packet_stat[ip] = {}
-                packet_stat[ip]["incoming external ips"] = {}
-                packet_stat[ip]["outgoing external ips"] = {}
-                packet_stat[ip]["incoming ports"] = {}
-                packet_stat[ip]["outgoing ports"] = {}
-                packet_stat[ip]["protocols"] = {}
+            packet_stat[ip]["outgoing traffic"]["#packet"] += 1
+            packet_stat[ip]["outgoing traffic"]["traffic in bytes"] += p_size
             
             if packet_stat[ip]["outgoing external ips"].get(p_ip_dst) == None:
                 packet_stat[ip]["outgoing external ips"][p_ip_dst] = {}
@@ -122,13 +152,9 @@ def update_local_database():
 
 
         elif p_ip_dst == ip:
-            if packet_stat.get(ip) == None:
-                packet_stat[ip] = {}
-                packet_stat[ip]["incoming external ips"] = {}
-                packet_stat[ip]["outgoing external ips"] = {}
-                packet_stat[ip]["incoming ports"] = {}
-                packet_stat[ip]["outgoing ports"] = {}
-                packet_stat[ip]["protocols"] = {}
+            # incoming packet
+            packet_stat[ip]["incoming traffic"]["#packet"] += 1
+            packet_stat[ip]["incoming traffic"]["traffic in bytes"] += p_size
             
             if packet_stat[ip]["outgoing external ips"].get(p_ip_dst) == None:
                 packet_stat[ip]["outgoing external ips"][p_ip_dst] = {}

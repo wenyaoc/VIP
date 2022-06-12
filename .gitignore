@@ -3,4 +3,6 @@
 test.csv
 ns1.csv
 .idea
-dataset
+data/
+output/
+fft/
