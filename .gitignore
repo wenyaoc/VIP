@@ -1,8 +1,5 @@
 # ignore pcap
 *.pcap
-test.csv
-ns1.csv
+*.csv
 .idea
-data/
-output/
-fft/
+*.jpg
