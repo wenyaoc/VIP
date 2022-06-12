@@ -1,12 +1,17 @@
 import dpkt
 import socket
-import datetime
+from datetime import datetime
 from dpkt.compat import compat_ord
 import matplotlib.pyplot as plt
 import itertools
 import csv
 import sys
 import collections
+import threading
+from threading import Thread
+import time
+
+
 
 def mac_addr(address):
     """Convert a MAC address to a readable/printable string
@@ -58,6 +63,98 @@ def plot_piechart(dic, chartName, threshold):
 
 
 
+
+class Send_Data(Thread):
+    def run(self):
+        global packet_stat
+        # send the data to the machine learning server after every $MONITORING_WINDOW:time
+        while True:
+            time.sleep(monitor_window)
+
+
+
+'''
+update local/host database based on the global variables
+only target IPs that appear at least once will have an entry
+if the target IP does not have an entry, assume its quantitative feature to be 0, and qualitative/categorical feature to be NULL/NONE
+
+'''
+
+def update_local_database():
+    
+
+    for ip in target_ips:
+        if p_ip_src == ip:
+            # outgoing packet
+            # create all the missing entries
+            if packet_stat.get(ip) == None:
+                packet_stat[ip] = {}
+                packet_stat[ip]["incoming external ips"] = {}
+                packet_stat[ip]["outgoing external ips"] = {}
+                packet_stat[ip]["incoming ports"] = {}
+                packet_stat[ip]["outgoing ports"] = {}
+                packet_stat[ip]["protocols"] = {}
+            
+            if packet_stat[ip]["outgoing external ips"].get(p_ip_dst) == None:
+                packet_stat[ip]["outgoing external ips"][p_ip_dst] = {}
+                packet_stat[ip]["outgoing external ips"][p_ip_dst]["#packets"] = 0
+                packet_stat[ip]["outgoing external ips"][p_ip_dst]["traffic in bytes"] = 0
+            
+            if packet_stat[ip]["outgoing ports"].get(p_port_src) == None:
+                packet_stat[ip]["outgoing ports"][p_port_src] = {}
+                packet_stat[ip]["outgoing ports"][p_port_src]["#packet"] = 0
+                packet_stat[ip]["outgoing ports"][p_port_src]["traffic in bytes"] = 0
+            
+            if packet_stat[ip]["protocols"].get(p_proto) == None:
+                packet_stat[ip]["protocols"][p_proto] = {}
+                packet_stat[ip]["protocols"][p_proto]["#packet"] = 0
+                packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] = 0
+
+            # update info
+            packet_stat[ip]["outgoing external ips"][p_ip_dst]["#packet"] += 1
+            packet_stat[ip]["outgoing external ips"][p_ip_dst]["traffic in bytes"] += p_size
+
+            packet_stat[ip]["outgoing ports"][p_port_src]["#packet"] += 1
+            packet_stat[ip]["outgoing ports"][p_port_src]["traffic in bytes"] += p_size
+
+            packet_stat[ip]["protocols"][p_proto]["#packet"] += 1
+            packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] += p_size
+
+
+        elif p_ip_dst == ip:
+            if packet_stat.get(ip) == None:
+                packet_stat[ip] = {}
+                packet_stat[ip]["incoming external ips"] = {}
+                packet_stat[ip]["outgoing external ips"] = {}
+                packet_stat[ip]["incoming ports"] = {}
+                packet_stat[ip]["outgoing ports"] = {}
+                packet_stat[ip]["protocols"] = {}
+            
+            if packet_stat[ip]["outgoing external ips"].get(p_ip_dst) == None:
+                packet_stat[ip]["outgoing external ips"][p_ip_dst] = {}
+                packet_stat[ip]["outgoing external ips"][p_ip_dst]["#packets"] = 0
+                packet_stat[ip]["outgoing external ips"][p_ip_dst]["traffic in bytes"] = 0
+            
+            if packet_stat[ip]["outgoing ports"].get(p_port_src) == None:
+                packet_stat[ip]["outgoing ports"][p_port_src] = {}
+                packet_stat[ip]["outgoing ports"][p_port_src]["#packet"] = 0
+                packet_stat[ip]["outgoing ports"][p_port_src]["traffic in bytes"] = 0
+            
+            if packet_stat[ip]["protocols"].get(p_proto) == None:
+                packet_stat[ip]["protocols"][p_proto] = {}
+                packet_stat[ip]["protocols"][p_proto]["#packet"] = 0
+                packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] = 0
+
+            # update info
+            packet_stat[ip]["outgoing external ips"][p_ip_dst]["#packet"] += 1
+            packet_stat[ip]["outgoing external ips"][p_ip_dst]["traffic in bytes"] += p_size
+
+            packet_stat[ip]["outgoing ports"][p_port_src]["#packet"] += 1
+            packet_stat[ip]["outgoing ports"][p_port_src]["traffic in bytes"] += p_size
+
+            packet_stat[ip]["protocols"][p_proto]["#packet"] += 1
+            packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] += p_size
+
 def get_attr_for_ip(ip_addr):
     """Get a pre-defined set of attributes for the given IP address
     list of attribute:
@@ -106,8 +203,6 @@ def get_attr_for_ip(ip_addr):
     currTime = filtered_packets[0]['TIME']
     for packet in filtered_packets:
         if (packet['TIME'] >= (currTime + 60)):
-            # get IP address rank
-
 
             ip_external_in_occurrences = collections.Counter(ip_external_in)
             ip_external_in_occurrences_volume = collections.Counter(ip_external_in_volume)
@@ -206,18 +301,39 @@ def get_attr_for_ip(ip_addr):
                 packet_in += 1
 
 
-
+start_time = datetime.now()
 
 filename='./data/23Mar_pcap.pcap'
 f = open(filename, 'rb')
 print("file successfully opened")
 pcap = dpkt.pcap.Reader(f)
 
+monitor_window = 60   # size of the time window in seconds
+threadlock = threading.Lock()
+
+# ips under monitoring
+target_ips = []
+
+p_id = None
+p_time = None
+p_size = None
+p_eth_src = None
+p_eth_dst = None
+p_ip_src = None
+p_ip_dst = None
+p_proto = None
+p_port_src = None
+p_port_dst = None
+
+packet_stat = {}
 
 #header = ['Packet ID', 'TIME', 'Size', 'eth.src', 'eth.dst', 'IP.src', 'IP.dst', 'IP.proto', 'port.src', 'port.dst']
-packets = []
+
+
+
 count = 0
 for timestamp, buf in pcap:
+
     count += 1
 
     eth = dpkt.ethernet.Ethernet(buf)
@@ -254,21 +370,20 @@ for timestamp, buf in pcap:
     #      (, , ip.len, ip.ttl, do_not_fragment, more_fragments, fragment_offset)
     # write the data
 
-    # convert the packet info into a dictionary and record them in an array
-    data = {
-        "Packet ID": count, 
-        "TIME": int(timestamp),
-        "Size": len(buf),
-        "eth.src": mac_addr(eth.src),
-        "eth.dst": mac_addr(eth.dst),
-        "IP.src": inet_to_str(ip.src),
-        "IP.dst": inet_to_str(ip.dst),
-        "IP.proto": ip.p,
-        "port.src": srcport,
-        "port.dst": dstport}
-    packets.append(data)
+    # 
+    p_id = count
+    p_time = int(timestamp)
+    p_size = len(buf)
+    p_eth_src = mac_addr(eth.src)
+    p_eth_dst = mac_addr(eth.eth)
+    p_ip_src = inet_to_str(ip.src)
+    p_ip_dst = inet_to_str(ip.dst)
+    p_proto = ip.p
+    p_port_src = srcport
+    p_port_dst = dstport
 
+    update_local_database()
+    
 
-get_attr_for_ip('149.171.99.123')
 f.close()
 
