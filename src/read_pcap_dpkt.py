@@ -61,29 +61,56 @@ def plot_piechart(dic, chartName, threshold):
     plt.savefig(chartName)
     plt.show()
 
-
+'''
+    Analyze local database and generate features
+    return a 1 dimension dictionary
+'''
 def analyze_features():
+    for ip in target_ips:
+        None
+
+
     # packet rate(incoming/outgoing/bidirection)
     
 
 
+    
     # byte rate(incoming/outgoing/bidirection)
 
+    
     
     
     # average packet size(incoming/outgoing)
 
 
+
     
     # ranked external IPs(incoming/outgoing, #packet/bytes)
 
+    
+    
+    
+    # #external IPs
 
-    # ports(incoming/outgoing)
+    
+    
+    
+    # ranked ports(incoming/outgoing)
 
+    
+    
+    
+    # #ports
 
+    
+    
+    
     # protocol(bidirection)
+
+
+
  
-    None
+    
 
 class Send_Data(Thread):
     def run(self):
@@ -114,8 +141,7 @@ def update_local_database():
             packet_stat[ip]["outgoing traffic"] = {}
             packet_stat[ip]["outgoing traffic"]["#packet"] = 0
             packet_stat[ip]["outgoing traffic"]["traffic in bytes"] = 0
-            packet_stat[ip]["incoming external ips"] = {}
-            packet_stat[ip]["outgoing external ips"] = {}
+            packet_stat[ip]["external IPs"] = {}
             packet_stat[ip]["incoming ports"] = {}
             packet_stat[ip]["outgoing ports"] = {}
             packet_stat[ip]["protocols"] = {}
@@ -125,15 +151,11 @@ def update_local_database():
             packet_stat[ip]["outgoing traffic"]["#packet"] += 1
             packet_stat[ip]["outgoing traffic"]["traffic in bytes"] += p_size
             
-            if packet_stat[ip]["outgoing external ips"].get(p_ip_dst) == None:
-                packet_stat[ip]["outgoing external ips"][p_ip_dst] = {}
-                packet_stat[ip]["outgoing external ips"][p_ip_dst]["#packets"] = 0
-                packet_stat[ip]["outgoing external ips"][p_ip_dst]["traffic in bytes"] = 0
-            
-            if packet_stat[ip]["outgoing ports"].get(p_port_src) == None:
-                packet_stat[ip]["outgoing ports"][p_port_src] = {}
-                packet_stat[ip]["outgoing ports"][p_port_src]["#packet"] = 0
-                packet_stat[ip]["outgoing ports"][p_port_src]["traffic in bytes"] = 0
+            if packet_stat[ip]["external IPs"].get(p_ip_dst) == None:
+                packet_stat[ip]["external IPs"][p_ip_dst]["#incoming packet"] = 0
+                packet_stat[ip]["external IPs"][p_ip_dst]["incoming traffic in bytes"] = 0
+                packet_stat[ip]["external IPs"][p_ip_dst]["#outgoing packet"] = 0
+                packet_stat[ip]["external IPs"][p_ip_dst]["outgoing traffic in bytes"] = 0
             
             if packet_stat[ip]["protocols"].get(p_proto) == None:
                 packet_stat[ip]["protocols"][p_proto] = {}
@@ -141,8 +163,8 @@ def update_local_database():
                 packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] = 0
 
             # update info
-            packet_stat[ip]["outgoing external ips"][p_ip_dst]["#packet"] += 1
-            packet_stat[ip]["outgoing external ips"][p_ip_dst]["traffic in bytes"] += p_size
+            packet_stat[ip]["external IPs"][p_ip_dst]["#outgoing packet"] += 1
+            packet_stat[ip]["external IPs"][p_ip_dst]["outgoing traffic in bytes"] += p_size
 
             packet_stat[ip]["outgoing ports"][p_port_src]["#packet"] += 1
             packet_stat[ip]["outgoing ports"][p_port_src]["traffic in bytes"] += p_size
@@ -156,10 +178,11 @@ def update_local_database():
             packet_stat[ip]["incoming traffic"]["#packet"] += 1
             packet_stat[ip]["incoming traffic"]["traffic in bytes"] += p_size
             
-            if packet_stat[ip]["outgoing external ips"].get(p_ip_dst) == None:
-                packet_stat[ip]["outgoing external ips"][p_ip_dst] = {}
-                packet_stat[ip]["outgoing external ips"][p_ip_dst]["#packets"] = 0
-                packet_stat[ip]["outgoing external ips"][p_ip_dst]["traffic in bytes"] = 0
+            if packet_stat[ip]["external ips"].get(p_ip_src) == None:
+                packet_stat[ip]["external IPs"][p_ip_src]["#incoming packet"] = 0
+                packet_stat[ip]["external IPs"][p_ip_src]["incoming traffic in bytes"] = 0
+                packet_stat[ip]["external IPs"][p_ip_src]["#incoming packet"] = 0
+                packet_stat[ip]["external IPs"][p_ip_src]["incoming traffic in bytes"] = 0
             
             if packet_stat[ip]["outgoing ports"].get(p_port_src) == None:
                 packet_stat[ip]["outgoing ports"][p_port_src] = {}
@@ -172,11 +195,11 @@ def update_local_database():
                 packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] = 0
 
             # update info
-            packet_stat[ip]["outgoing external ips"][p_ip_dst]["#packet"] += 1
-            packet_stat[ip]["outgoing external ips"][p_ip_dst]["traffic in bytes"] += p_size
+            packet_stat[ip]["external IPs"][p_ip_src]["#incoming packet"] += 1
+            packet_stat[ip]["external IPs"][p_ip_src]["incoming traffic in bytes"] += p_size
 
-            packet_stat[ip]["outgoing ports"][p_port_src]["#packet"] += 1
-            packet_stat[ip]["outgoing ports"][p_port_src]["traffic in bytes"] += p_size
+            packet_stat[ip]["outgoing ports"][p_port_dst]["#packet"] += 1
+            packet_stat[ip]["outgoing ports"][p_port_dst]["traffic in bytes"] += p_size
 
             packet_stat[ip]["protocols"][p_proto]["#packet"] += 1
             packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] += p_size
