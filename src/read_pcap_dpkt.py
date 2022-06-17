@@ -11,6 +11,8 @@ import threading
 from threading import Thread
 import time
 
+from numpy import outer
+
 
 
 def mac_addr(address):
@@ -65,44 +67,64 @@ def plot_piechart(dic, chartName, threshold):
     Analyze local database and generate features
     return a 1 dimension dictionary
 '''
+# [ip, in rate, out rate, in bite, out bite, avg in size, avg out size, top ext ip by pkt, top ext ip by size, top in port, top out port, top proto]
 def analyze_features():
+    out_list = []
+    i = 0
     for ip in target_ips:
-        None
+        out_list.append([])
+        out_list[i].append(ip)
 
 
     # packet rate(incoming/outgoing/bidirection)
-    
-
-
+        out_list[i].append(packet_stat[ip]["incoming traffic"]["#packet"])
+        out_list[i].append(packet_stat[ip]["outgoing traffic"]["#packet"])
     
     # byte rate(incoming/outgoing/bidirection)
-
-    
-    
+        out_list[i].append(packet_stat[ip]["incoming traffic"]["traffic in bytes"])
+        out_list[i].append(packet_stat[ip]["outgoing traffic"]["traffic in bytes"])
     
     # average packet size(incoming/outgoing)
+        avg_in_size = packet_stat[ip]["incoming traffic"]["traffic in bytes"]\
+                      /packet_stat[ip]["incoming traffic"]["#packet"]
+        avg_out_size = packet_stat[ip]["outgoing traffic"]["traffic in bytes"]\
+                      /packet_stat[ip]["outgoing traffic"]["#packet"]
 
+        out_list[i].append(avg_in_size)
+        out_list[i].append(avg_out_size)
 
-
-    
-    # ranked external IPs(incoming/outgoing, #packet/bytes)
-
-    
-    
-    
     # #external IPs
+        ext_ip_list = packet_stat[ip]["external IPs"].keys()
+        max_pkt = 0
+        max_size = 0
+        max_ind_pkt = 0
+        max_ind_size = 0
+        ind = 0
+        ex_ip_pkt = 'None'
+        ex_ip_size = 'None'
+        if len(ext_ip_list) > 0:
+            for ext_ip in ext_ip_list:
+                pkt_n = packet_stat[ip]["external IPs"][ext_ip]["#incoming packet"] + \
+                        packet_stat[ip]["external IPs"][ext_ip]["#outgoing packet"]
+                size_pkt = packet_stat[ip]["external IPs"][ext_ip]["incoming traffic in bytes"] + \
+                            packet_stat[ip]["external IPs"][ext_ip]["outgoing traffic in bytes"]
+                if pkt_n > max_pkt:
+                    max_pkt = pkt_n
+                    max_ind_pkt = ind
 
-    
-    
-    
-    # ranked ports(incoming/outgoing)
-
-    
-    
-    
-    # #ports
-
-    
+                if size_pkt > max_size:
+                    max_size = size_pkt
+                    max_ind_size = ind
+                ind += 1
+            ex_ip_pkt = ext_ip_list[max_ind_pkt]
+            ex_ip_size = ext_ip_list[max_ind_size]
+        
+        out_list[i].append(ex_ip_pkt)
+        out_list[i].append(ex_ip_size)
+        
+    # ranked ports(internal/external)
+    internal_port_list = packet_stat[ip]["internal ports"].keys()
+    external_port_list = packet_stat[ip]["external ports"].keys()
     
     
     # protocol(bidirection)
@@ -112,13 +134,19 @@ def analyze_features():
  
     
 
-class Send_Data(Thread):
+class timerThread(Thread):
+    def __init__():
+        super.__init__()
+    
     def run(self):
         global packet_stat
         # send the data to the machine learning server after every $MONITORING_WINDOW:time
         while True:
             time.sleep(monitor_window)
-
+            analyze_features()
+            # output to csv
+            
+            # clean up
 
 
 '''
@@ -142,8 +170,8 @@ def update_local_database():
             packet_stat[ip]["outgoing traffic"]["#packet"] = 0
             packet_stat[ip]["outgoing traffic"]["traffic in bytes"] = 0
             packet_stat[ip]["external IPs"] = {}
-            packet_stat[ip]["incoming ports"] = {}
-            packet_stat[ip]["outgoing ports"] = {}
+            packet_stat[ip]["internal ports"] = {}
+            packet_stat[ip]["external ports"] = {}
             packet_stat[ip]["protocols"] = {}
 
         if p_ip_src == ip:
@@ -166,8 +194,10 @@ def update_local_database():
             packet_stat[ip]["external IPs"][p_ip_dst]["#outgoing packet"] += 1
             packet_stat[ip]["external IPs"][p_ip_dst]["outgoing traffic in bytes"] += p_size
 
-            packet_stat[ip]["outgoing ports"][p_port_src]["#packet"] += 1
-            packet_stat[ip]["outgoing ports"][p_port_src]["traffic in bytes"] += p_size
+            packet_stat[ip]["internal ports"][p_port_src]["#packet"] += 1
+            packet_stat[ip]["internal ports"][p_port_src]["traffic in bytes"] += p_size
+            packet_stat[ip]["external ports"][p_port_dst]["#packet"] += 1
+            packet_stat[ip]["external ports"][p_port_dst]["traffic in bytes"] += p_size
 
             packet_stat[ip]["protocols"][p_proto]["#packet"] += 1
             packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] += p_size
@@ -198,8 +228,10 @@ def update_local_database():
             packet_stat[ip]["external IPs"][p_ip_src]["#incoming packet"] += 1
             packet_stat[ip]["external IPs"][p_ip_src]["incoming traffic in bytes"] += p_size
 
-            packet_stat[ip]["outgoing ports"][p_port_dst]["#packet"] += 1
-            packet_stat[ip]["outgoing ports"][p_port_dst]["traffic in bytes"] += p_size
+            packet_stat[ip]["internal ports"][p_port_dst]["#packet"] += 1
+            packet_stat[ip]["internal ports"][p_port_dst]["traffic in bytes"] += p_size
+            packet_stat[ip]["external ports"][p_port_src]["#packet"] += 1
+            packet_stat[ip]["external ports"][p_port_src]["traffic in bytes"] += p_size
 
             packet_stat[ip]["protocols"][p_proto]["#packet"] += 1
             packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] += p_size
@@ -362,6 +394,9 @@ threadlock = threading.Lock()
 
 # ips under monitoring
 target_ips = []
+
+timerThread = timerThread()
+timerThread.start()
 
 p_id = None
 p_time = None
