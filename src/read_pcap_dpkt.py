@@ -1,3 +1,4 @@
+from struct import pack
 import dpkt
 import socket
 from datetime import datetime
@@ -67,7 +68,8 @@ def plot_piechart(dic, chartName, threshold):
     Analyze local database and generate features
     return a 1 dimension dictionary
 '''
-# [ip, in rate, out rate, in bite, out bite, avg in size, avg out size, top ext ip by pkt, top ext ip by size, top in port, top out port, top proto]
+# [ip, in rate, out rate, in bite, out bite, avg in size, avg out size, 
+# \ top ext ip by pkt, top ext ip by size, top in port(pkt/byte), top out port(pkt/byte), top proto(pkt/byte)]
 def analyze_features():
     out_list = []
     i = 0
@@ -123,12 +125,85 @@ def analyze_features():
         out_list[i].append(ex_ip_size)
         
     # ranked ports(internal/external)
-    internal_port_list = packet_stat[ip]["internal ports"].keys()
-    external_port_list = packet_stat[ip]["external ports"].keys()
-    
+        internal_port_list = packet_stat[ip]["internal ports"].keys()
+        max_pkt = 0
+        max_size = 0
+        max_ind_pkt = 0
+        max_ind_size = 0
+        ind = 0
+        out_pkt = 'None'
+        out_size = 'None'
+        if len(internal_port_list) > 0:
+            for port_n in internal_port_list:
+                pkt_n = packet_stat[ip]["internal ports"][port_n]["#packet"]
+                size_pkt = packet_stat[ip]["internal ports"][port_n]["traffic in bytes"]
+                if pkt_n > max_pkt:
+                    max_pkt = pkt_n
+                    max_ind_pkt = ind
+
+                if size_pkt > max_size:
+                    max_size = size_pkt
+                    max_ind_size = ind
+                ind += 1
+            out_pkt = internal_port_list[max_ind_pkt]
+            out_size = internal_port_list[max_ind_size]
+        
+        out_list[i].append(out_pkt)
+        out_list[i].append(out_size)
+
+
+        external_port_list = packet_stat[ip]["external ports"].keys()
+        max_pkt = 0
+        max_size = 0
+        max_ind_pkt = 0
+        max_ind_size = 0
+        ind = 0
+        out_pkt = 'None'
+        out_size = 'None'
+        if len(external_port_list) > 0:
+            for port_n in external_port_list:
+                pkt_n = packet_stat[ip]["external ports"][port_n]["#packet"]
+                size_pkt = packet_stat[ip]["external ports"][port_n]["traffic in bytes"]
+                if pkt_n > max_pkt:
+                    max_pkt = pkt_n
+                    max_ind_pkt = ind
+
+                if size_pkt > max_size:
+                    max_size = size_pkt
+                    max_ind_size = ind
+                ind += 1
+            out_pkt = external_port_list[max_ind_pkt]
+            out_size = external_port_list[max_ind_size]
+        
+        out_list[i].append(out_pkt)
+        out_list[i].append(out_size)
     
     # protocol(bidirection)
+        proto_list = packet_stat[ip]["protocols"].keys()
+        max_pkt = 0
+        max_size = 0
+        max_ind_pkt = 0
+        max_ind_size = 0
+        ind = 0
+        out_pkt = 'None'
+        out_size = 'None'
+        if len(proto_list) > 0:
+            for pro in proto_list:
+                pkt_n = packet_stat[ip]["protocols"][pro]["#packet"]
+                size_pkt = packet_stat[ip]["protocols"][pro]["traffic in bytes"]
+                if pkt_n > max_pkt:
+                    max_pkt = pkt_n
+                    max_ind_pkt = ind
 
+                if size_pkt > max_size:
+                    max_size = size_pkt
+                    max_ind_size = ind
+                ind += 1
+            out_pkt = proto_list[max_ind_pkt]
+            out_size = proto_list[max_ind_size]
+        
+        out_list[i].append(out_pkt)
+        out_list[i].append(out_size)
 
 
  
@@ -185,6 +260,14 @@ def update_local_database():
                 packet_stat[ip]["external IPs"][p_ip_dst]["#outgoing packet"] = 0
                 packet_stat[ip]["external IPs"][p_ip_dst]["outgoing traffic in bytes"] = 0
             
+            if packet_stat[ip]["internal ports"].get(p_port_src) == None:
+                packet_stat[ip]["internal ports"][p_port_src]["#packet"] = 0
+                packet_stat[ip]["internal ports"][p_port_src]["traffic in bytes"] = 0
+
+            if packet_stat[ip]["external ports"].get(p_port_dst) == None:
+                packet_stat[ip]["external ports"][p_port_dst]["#packet"] = 0
+                packet_stat[ip]["external ports"][p_port_dst]["traffic in bytes"] = 0
+
             if packet_stat[ip]["protocols"].get(p_proto) == None:
                 packet_stat[ip]["protocols"][p_proto] = {}
                 packet_stat[ip]["protocols"][p_proto]["#packet"] = 0
@@ -213,11 +296,14 @@ def update_local_database():
                 packet_stat[ip]["external IPs"][p_ip_src]["incoming traffic in bytes"] = 0
                 packet_stat[ip]["external IPs"][p_ip_src]["#incoming packet"] = 0
                 packet_stat[ip]["external IPs"][p_ip_src]["incoming traffic in bytes"] = 0
-            
-            if packet_stat[ip]["outgoing ports"].get(p_port_src) == None:
-                packet_stat[ip]["outgoing ports"][p_port_src] = {}
-                packet_stat[ip]["outgoing ports"][p_port_src]["#packet"] = 0
-                packet_stat[ip]["outgoing ports"][p_port_src]["traffic in bytes"] = 0
+
+            if packet_stat[ip]["internal ports"].get(p_port_dst) == None:
+                packet_stat[ip]["internal ports"][p_port_dst]["#packet"] = 0
+                packet_stat[ip]["internal ports"][p_port_dst]["traffic in bytes"] = 0
+
+            if packet_stat[ip]["external ports"].get(p_port_src) == None:
+                packet_stat[ip]["external ports"][p_port_src]["#packet"] = 0
+                packet_stat[ip]["external ports"][p_port_src]["traffic in bytes"] = 0
             
             if packet_stat[ip]["protocols"].get(p_proto) == None:
                 packet_stat[ip]["protocols"][p_proto] = {}
@@ -446,10 +532,10 @@ for timestamp, buf in pcap:
 
     # Print out the info
     # Print out the timestamp in UTC
-    print(f'{count}. Timestamp: {datetime.datetime.utcfromtimestamp(timestamp)}, len: {len(buf)}')
+    '''print(f'{count}. Timestamp: {datetime.datetime.utcfromtimestamp(timestamp)}, len: {len(buf)}')
     print(f'Ethernet Frame: {mac_addr(eth.src)}, {mac_addr(eth.dst)}, {eth.type}')
     print(f'IP: {inet_to_str(ip.src)} -> {inet_to_str(ip.dst)} proto: {ip.p}')
-    print(f"port.src: {srcport}, port.dst: {dstport}")
+    print(f"port.src: {srcport}, port.dst: {dstport}")'''
     #   (len=%d ttl=%d DF=%d MF=%d offset=%d)')
     #      (, , ip.len, ip.ttl, do_not_fragment, more_fragments, fragment_offset)
     # write the data
