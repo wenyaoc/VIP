@@ -113,7 +113,7 @@ class IpStat:
         return
 
     def get_byte_rate():
-        
+        return
 
 
 
@@ -319,12 +319,22 @@ class timerThread(Thread):
         # send the data to the machine learning server after every $MONITORING_WINDOW:time
         while True:
             time.sleep(monitor_window)
-            analyze_features()
             # output to csv
+            self.write_csv(analyze_features())
             
             # clean up
 
 
+    def write_csv(self, out_list):
+        # header = ['Packet ID', 'TIME', 'Size', 'eth.src', 'eth.dst', 'IP.src', 'IP.dst', 'IP.proto', 'port.src', 'port.dst']
+        # devIP = "149.171.0.34"
+        with open('23Mar.csv', 'w', encoding='UTF8', newline='') as f:
+            writer = csv.writer(f)
+            # write the header
+            # writer.writerow(header)
+    
+            for  output in out_list:
+                writer.writerow(output)
 '''
 update local/host database based on the global variables
 only target IPs that appear at least once will have an entry
