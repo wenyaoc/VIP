@@ -1,4 +1,3 @@
-from struct import pack
 import dpkt
 import socket
 from datetime import datetime
@@ -11,8 +10,7 @@ import collections
 import threading
 from threading import Thread
 import time
-
-from numpy import outer
+import os
 
 
 class IpStat:
@@ -20,7 +18,7 @@ class IpStat:
         self.local_stat = {}
         self.target_IPs = target_IPs
 
-    def update_stat(self, id, time, size, eth_src, eth_dst, ip_src, ip_dst, proto, port_src, port_dst):
+    def update_stat(self, size, eth_src, eth_dst, ip_src, ip_dst, proto, port_src, port_dst):
         for ip in self.target_IPs:
             if (ip_src == ip or ip_dst == ip) and self.local_stat.get(ip) == None:
                 self.local_stat[ip] = {}
@@ -35,22 +33,25 @@ class IpStat:
                 self.local_stat[ip]["external ports"] = {}
                 self.local_stat[ip]["protocols"] = {}
 
-            if p_ip_src == ip:
+            if ip_src == ip:
                 # outgoing packet
                 self.local_stat[ip]["outgoing traffic"]["#packet"] += 1
                 self.local_stat[ip]["outgoing traffic"]["traffic in bytes"] += size
                 
                 if self.local_stat[ip]["external IPs"].get(ip_dst) == None:
+                    self.local_stat[ip]["external IPs"][ip_dst] = {}
                     self.local_stat[ip]["external IPs"][ip_dst]["#incoming packet"] = 0
                     self.local_stat[ip]["external IPs"][ip_dst]["incoming traffic in bytes"] = 0
                     self.local_stat[ip]["external IPs"][ip_dst]["#outgoing packet"] = 0
                     self.local_stat[ip]["external IPs"][ip_dst]["outgoing traffic in bytes"] = 0
                 
                 if self.local_stat[ip]["internal ports"].get(port_src) == None:
+                    self.local_stat[ip]["internal ports"][port_src] = {}
                     self.local_stat[ip]["internal ports"][port_src]["#packet"] = 0
                     self.local_stat[ip]["internal ports"][port_src]["traffic in bytes"] = 0
 
                 if self.local_stat[ip]["external ports"].get(port_dst) == None:
+                    self.local_stat[ip]["external ports"][port_dst] = {}
                     self.local_stat[ip]["external ports"][port_dst]["#packet"] = 0
                     self.local_stat[ip]["external ports"][port_dst]["traffic in bytes"] = 0
 
@@ -77,17 +78,20 @@ class IpStat:
                 self.local_stat[ip]["incoming traffic"]["#packet"] += 1
                 self.local_stat[ip]["incoming traffic"]["traffic in bytes"] += size
                 
-                if self.local_stat[ip]["external ips"].get(ip_src) == None:
+                if self.local_stat[ip]["external IPs"].get(ip_src) == None:
+                    self.local_stat[ip]["external IPs"][ip_src] = {}
                     self.local_stat[ip]["external IPs"][ip_src]["#incoming packet"] = 0
                     self.local_stat[ip]["external IPs"][ip_src]["incoming traffic in bytes"] = 0
-                    self.local_stat[ip]["external IPs"][ip_src]["#incoming packet"] = 0
-                    self.local_stat[ip]["external IPs"][ip_src]["incoming traffic in bytes"] = 0
+                    self.local_stat[ip]["external IPs"][ip_src]["#outgoing packet"] = 0
+                    self.local_stat[ip]["external IPs"][ip_src]["outgoing traffic in bytes"] = 0
 
                 if self.local_stat[ip]["internal ports"].get(port_dst) == None:
+                    self.local_stat[ip]["internal ports"][port_dst] = {}
                     self.local_stat[ip]["internal ports"][port_dst]["#packet"] = 0
                     self.local_stat[ip]["internal ports"][port_dst]["traffic in bytes"] = 0
 
                 if self.local_stat[ip]["external ports"].get(port_src) == None:
+                    self.local_stat[ip]["external ports"][port_src] = {}
                     self.local_stat[ip]["external ports"][port_src]["#packet"] = 0
                     self.local_stat[ip]["external ports"][port_src]["traffic in bytes"] = 0
                 
@@ -108,13 +112,162 @@ class IpStat:
                 self.local_stat[ip]["protocols"][proto]["#packet"] += 1
                 self.local_stat[ip]["protocols"][proto]["traffic in bytes"] += size    
 
+    '''
+        Analyze local database and generate features
+        return a 1 dimension dictionary
+    '''
+    # [ip, in rate, out rate, in bite, out bite, avg in size, avg out size, 
+    # \ top ext ip by pkt, top ext ip by size, top in port(pkt/byte), top out port(pkt/byte), top proto(pkt/byte)]
+    def analyze_features(self):
+        out_list = []
+        i = 0
+        for ip in target_ips:
+            # create empty row
+            out_list.append([])
 
-    def get_packet_rate():
-        return
+            # start to generate IP specific start
+            out_list[i].append(ip)
 
-    def get_byte_rate():
-        return
+            if self.local_stat.get(ip) == None:
+                out_list[i].extend([0, 0, 0, 0, 0, 0, "/", "/", 0, 0, 0, 0, "/", "/"])
+                i += 1 
+                continue
 
+        # packet rate(incoming/outgoing/bidirection)
+            out_list[i].append(self.local_stat[ip]["incoming traffic"]["#packet"])
+            out_list[i].append(self.local_stat[ip]["outgoing traffic"]["#packet"])
+        
+        # byte rate(incoming/outgoing/bidirection)
+            out_list[i].append(self.local_stat[ip]["incoming traffic"]["traffic in bytes"])
+            out_list[i].append(self.local_stat[ip]["outgoing traffic"]["traffic in bytes"])
+        
+        # average packet size(incoming/outgoing)
+            avg_in_size = self.local_stat[ip]["incoming traffic"]["traffic in bytes"]\
+                        /self.local_stat[ip]["incoming traffic"]["#packet"]
+            avg_out_size = self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]\
+                        /self.local_stat[ip]["outgoing traffic"]["#packet"]
+
+            out_list[i].append(avg_in_size)
+            out_list[i].append(avg_out_size)
+
+        # #external IPs
+            ext_ip_list = list(self.local_stat[ip]["external IPs"].keys())
+            max_pkt = 0
+            max_size = 0
+            max_ind_pkt = 0
+            max_ind_size = 0
+            ind = 0
+            ex_ip_pkt = 'None'
+            ex_ip_size = 'None'
+            if len(ext_ip_list) > 0:
+                for ext_ip in ext_ip_list:
+                    pkt_n = self.local_stat[ip]["external IPs"][ext_ip]["#incoming packet"] + \
+                            self.local_stat[ip]["external IPs"][ext_ip]["#outgoing packet"]
+                    size_pkt = self.local_stat[ip]["external IPs"][ext_ip]["incoming traffic in bytes"] + \
+                                self.local_stat[ip]["external IPs"][ext_ip]["outgoing traffic in bytes"]
+                    if pkt_n > max_pkt:
+                        max_pkt = pkt_n
+                        max_ind_pkt = ind
+
+                    if size_pkt > max_size:
+                        max_size = size_pkt
+                        max_ind_size = ind
+                    ind += 1
+                ex_ip_pkt = ext_ip_list[max_ind_pkt]
+                ex_ip_size = ext_ip_list[max_ind_size]
+            
+            out_list[i].append(ex_ip_pkt)
+            out_list[i].append(ex_ip_size)
+            
+        # ranked ports(internal/external)
+            internal_port_list = list(self.local_stat[ip]["internal ports"].keys())
+            max_pkt = 0
+            max_size = 0
+            max_ind_pkt = 0
+            max_ind_size = 0
+            ind = 0
+            out_pkt = 'None'
+            out_size = 'None'
+            if len(internal_port_list) > 0:
+                for port_n in internal_port_list:
+                    pkt_n = self.local_stat[ip]["internal ports"][port_n]["#packet"]
+                    size_pkt = self.local_stat[ip]["internal ports"][port_n]["traffic in bytes"]
+                    if pkt_n > max_pkt:
+                        max_pkt = pkt_n
+                        max_ind_pkt = ind
+
+                    if size_pkt > max_size:
+                        max_size = size_pkt
+                        max_ind_size = ind
+                    ind += 1
+                out_pkt = internal_port_list[max_ind_pkt]
+                out_size = internal_port_list[max_ind_size]
+            
+            out_list[i].append(out_pkt)
+            out_list[i].append(out_size)
+
+
+            external_port_list = list(self.local_stat[ip]["external ports"].keys())
+            max_pkt = 0
+            max_size = 0
+            max_ind_pkt = 0
+            max_ind_size = 0
+            ind = 0
+            out_pkt = 'None'
+            out_size = 'None'
+            if len(external_port_list) > 0:
+                for port_n in external_port_list:
+                    pkt_n = self.local_stat[ip]["external ports"][port_n]["#packet"]
+                    size_pkt = self.local_stat[ip]["external ports"][port_n]["traffic in bytes"]
+                    if pkt_n > max_pkt:
+                        max_pkt = pkt_n
+                        max_ind_pkt = ind
+
+                    if size_pkt > max_size:
+                        max_size = size_pkt
+                        max_ind_size = ind
+                    ind += 1
+                out_pkt = external_port_list[max_ind_pkt]
+                out_size = external_port_list[max_ind_size]
+            
+            out_list[i].append(out_pkt)
+            out_list[i].append(out_size)
+        
+        # protocol(bidirection)
+            proto_list = list(self.local_stat[ip]["protocols"].keys())
+            max_pkt = 0
+            max_size = 0
+            max_ind_pkt = 0
+            max_ind_size = 0
+            ind = 0
+            out_pkt = 'None'
+            out_size = 'None'
+            if len(proto_list) > 0:
+                for pro in proto_list:
+                    pkt_n = self.local_stat[ip]["protocols"][pro]["#packet"]
+                    size_pkt = self.local_stat[ip]["protocols"][pro]["traffic in bytes"]
+                    if pkt_n > max_pkt:
+                        max_pkt = pkt_n
+                        max_ind_pkt = ind
+
+                    if size_pkt > max_size:
+                        max_size = size_pkt
+                        max_ind_size = ind
+                    ind += 1
+                out_pkt = proto_list[max_ind_pkt]
+                out_size = proto_list[max_ind_size]
+            
+            out_list[i].append(out_pkt)
+            out_list[i].append(out_size)
+
+            i += 1
+
+        return out_list
+
+    def clear(self):
+        """Create an empty data structure for holding IP stats"""
+        self.local_stat = {}
+        
 
 
 def mac_addr(address):
@@ -165,273 +318,21 @@ def plot_piechart(dic, chartName, threshold):
     plt.savefig(chartName)
     plt.show()
 
-'''
-    Analyze local database and generate features
-    return a 1 dimension dictionary
-'''
-# [ip, in rate, out rate, in bite, out bite, avg in size, avg out size, 
-# \ top ext ip by pkt, top ext ip by size, top in port(pkt/byte), top out port(pkt/byte), top proto(pkt/byte)]
-def analyze_features():
-    out_list = []
-    i = 0
-    for ip in target_ips:
-        out_list.append([])
-        out_list[i].append(ip)
+
+def write_csv(out_list, filename):
+    header = ["IP", "in rate", "out rate", "in byte", "out byte", "avg in size", "avg out size", \
+        "top ext ip by pkt", "top ext ip by size", "top internal port(pkt)", "top internal port(byte)", \
+        "top external port(pkt)", "top external port(byte)", "top proto(pkt)", "top proto(byte)"]
+    # devIP = ""149.171.0.34"
+    with open(filename + '.csv', 'w', encoding='UTF8', newline='') as f:
+        writer = csv.writer(f)
+        # write the header
+        writer.writerow(header)
+
+        for output in out_list:
+            writer.writerow(output)
 
 
-    # packet rate(incoming/outgoing/bidirection)
-        out_list[i].append(packet_stat[ip]["incoming traffic"]["#packet"])
-        out_list[i].append(packet_stat[ip]["outgoing traffic"]["#packet"])
-    
-    # byte rate(incoming/outgoing/bidirection)
-        out_list[i].append(packet_stat[ip]["incoming traffic"]["traffic in bytes"])
-        out_list[i].append(packet_stat[ip]["outgoing traffic"]["traffic in bytes"])
-    
-    # average packet size(incoming/outgoing)
-        avg_in_size = packet_stat[ip]["incoming traffic"]["traffic in bytes"]\
-                      /packet_stat[ip]["incoming traffic"]["#packet"]
-        avg_out_size = packet_stat[ip]["outgoing traffic"]["traffic in bytes"]\
-                      /packet_stat[ip]["outgoing traffic"]["#packet"]
-
-        out_list[i].append(avg_in_size)
-        out_list[i].append(avg_out_size)
-
-    # #external IPs
-        ext_ip_list = packet_stat[ip]["external IPs"].keys()
-        max_pkt = 0
-        max_size = 0
-        max_ind_pkt = 0
-        max_ind_size = 0
-        ind = 0
-        ex_ip_pkt = 'None'
-        ex_ip_size = 'None'
-        if len(ext_ip_list) > 0:
-            for ext_ip in ext_ip_list:
-                pkt_n = packet_stat[ip]["external IPs"][ext_ip]["#incoming packet"] + \
-                        packet_stat[ip]["external IPs"][ext_ip]["#outgoing packet"]
-                size_pkt = packet_stat[ip]["external IPs"][ext_ip]["incoming traffic in bytes"] + \
-                            packet_stat[ip]["external IPs"][ext_ip]["outgoing traffic in bytes"]
-                if pkt_n > max_pkt:
-                    max_pkt = pkt_n
-                    max_ind_pkt = ind
-
-                if size_pkt > max_size:
-                    max_size = size_pkt
-                    max_ind_size = ind
-                ind += 1
-            ex_ip_pkt = ext_ip_list[max_ind_pkt]
-            ex_ip_size = ext_ip_list[max_ind_size]
-        
-        out_list[i].append(ex_ip_pkt)
-        out_list[i].append(ex_ip_size)
-        
-    # ranked ports(internal/external)
-        internal_port_list = packet_stat[ip]["internal ports"].keys()
-        max_pkt = 0
-        max_size = 0
-        max_ind_pkt = 0
-        max_ind_size = 0
-        ind = 0
-        out_pkt = 'None'
-        out_size = 'None'
-        if len(internal_port_list) > 0:
-            for port_n in internal_port_list:
-                pkt_n = packet_stat[ip]["internal ports"][port_n]["#packet"]
-                size_pkt = packet_stat[ip]["internal ports"][port_n]["traffic in bytes"]
-                if pkt_n > max_pkt:
-                    max_pkt = pkt_n
-                    max_ind_pkt = ind
-
-                if size_pkt > max_size:
-                    max_size = size_pkt
-                    max_ind_size = ind
-                ind += 1
-            out_pkt = internal_port_list[max_ind_pkt]
-            out_size = internal_port_list[max_ind_size]
-        
-        out_list[i].append(out_pkt)
-        out_list[i].append(out_size)
-
-
-        external_port_list = packet_stat[ip]["external ports"].keys()
-        max_pkt = 0
-        max_size = 0
-        max_ind_pkt = 0
-        max_ind_size = 0
-        ind = 0
-        out_pkt = 'None'
-        out_size = 'None'
-        if len(external_port_list) > 0:
-            for port_n in external_port_list:
-                pkt_n = packet_stat[ip]["external ports"][port_n]["#packet"]
-                size_pkt = packet_stat[ip]["external ports"][port_n]["traffic in bytes"]
-                if pkt_n > max_pkt:
-                    max_pkt = pkt_n
-                    max_ind_pkt = ind
-
-                if size_pkt > max_size:
-                    max_size = size_pkt
-                    max_ind_size = ind
-                ind += 1
-            out_pkt = external_port_list[max_ind_pkt]
-            out_size = external_port_list[max_ind_size]
-        
-        out_list[i].append(out_pkt)
-        out_list[i].append(out_size)
-    
-    # protocol(bidirection)
-        proto_list = packet_stat[ip]["protocols"].keys()
-        max_pkt = 0
-        max_size = 0
-        max_ind_pkt = 0
-        max_ind_size = 0
-        ind = 0
-        out_pkt = 'None'
-        out_size = 'None'
-        if len(proto_list) > 0:
-            for pro in proto_list:
-                pkt_n = packet_stat[ip]["protocols"][pro]["#packet"]
-                size_pkt = packet_stat[ip]["protocols"][pro]["traffic in bytes"]
-                if pkt_n > max_pkt:
-                    max_pkt = pkt_n
-                    max_ind_pkt = ind
-
-                if size_pkt > max_size:
-                    max_size = size_pkt
-                    max_ind_size = ind
-                ind += 1
-            out_pkt = proto_list[max_ind_pkt]
-            out_size = proto_list[max_ind_size]
-        
-        out_list[i].append(out_pkt)
-        out_list[i].append(out_size)
-
-
- 
-    
-
-class timerThread(Thread):
-    def __init__():
-        super.__init__()
-    
-    def run(self):
-        global packet_stat
-        # send the data to the machine learning server after every $MONITORING_WINDOW:time
-        while True:
-            time.sleep(monitor_window)
-            # output to csv
-            self.write_csv(analyze_features())
-            
-            # clean up
-
-
-    def write_csv(self, out_list):
-        # header = ['Packet ID', 'TIME', 'Size', 'eth.src', 'eth.dst', 'IP.src', 'IP.dst', 'IP.proto', 'port.src', 'port.dst']
-        # devIP = "149.171.0.34"
-        with open('23Mar.csv', 'w', encoding='UTF8', newline='') as f:
-            writer = csv.writer(f)
-            # write the header
-            # writer.writerow(header)
-    
-            for  output in out_list:
-                writer.writerow(output)
-'''
-update local/host database based on the global variables
-only target IPs that appear at least once will have an entry
-if the target IP does not have an entry, assume its quantitative feature to be 0, and qualitative/categorical feature to be NULL/NONE
-
-'''
-
-def update_local_database():
-    
-
-    for ip in target_ips:
-        # create missing entry
-        if (p_ip_src == ip or p_ip_dst == ip) and packet_stat.get(ip) == None:
-            packet_stat[ip] = {}
-            packet_stat[ip]["incoming traffic"] = {}
-            packet_stat[ip]["incoming traffic"]["#packet"] = 0
-            packet_stat[ip]["incoming traffic"]["traffic in bytes"] = 0
-            packet_stat[ip]["outgoing traffic"] = {}
-            packet_stat[ip]["outgoing traffic"]["#packet"] = 0
-            packet_stat[ip]["outgoing traffic"]["traffic in bytes"] = 0
-            packet_stat[ip]["external IPs"] = {}
-            packet_stat[ip]["internal ports"] = {}
-            packet_stat[ip]["external ports"] = {}
-            packet_stat[ip]["protocols"] = {}
-
-        if p_ip_src == ip:
-            # outgoing packet
-            packet_stat[ip]["outgoing traffic"]["#packet"] += 1
-            packet_stat[ip]["outgoing traffic"]["traffic in bytes"] += p_size
-            
-            if packet_stat[ip]["external IPs"].get(p_ip_dst) == None:
-                packet_stat[ip]["external IPs"][p_ip_dst]["#incoming packet"] = 0
-                packet_stat[ip]["external IPs"][p_ip_dst]["incoming traffic in bytes"] = 0
-                packet_stat[ip]["external IPs"][p_ip_dst]["#outgoing packet"] = 0
-                packet_stat[ip]["external IPs"][p_ip_dst]["outgoing traffic in bytes"] = 0
-            
-            if packet_stat[ip]["internal ports"].get(p_port_src) == None:
-                packet_stat[ip]["internal ports"][p_port_src]["#packet"] = 0
-                packet_stat[ip]["internal ports"][p_port_src]["traffic in bytes"] = 0
-
-            if packet_stat[ip]["external ports"].get(p_port_dst) == None:
-                packet_stat[ip]["external ports"][p_port_dst]["#packet"] = 0
-                packet_stat[ip]["external ports"][p_port_dst]["traffic in bytes"] = 0
-
-            if packet_stat[ip]["protocols"].get(p_proto) == None:
-                packet_stat[ip]["protocols"][p_proto] = {}
-                packet_stat[ip]["protocols"][p_proto]["#packet"] = 0
-                packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] = 0
-
-            # update info
-            packet_stat[ip]["external IPs"][p_ip_dst]["#outgoing packet"] += 1
-            packet_stat[ip]["external IPs"][p_ip_dst]["outgoing traffic in bytes"] += p_size
-
-            packet_stat[ip]["internal ports"][p_port_src]["#packet"] += 1
-            packet_stat[ip]["internal ports"][p_port_src]["traffic in bytes"] += p_size
-            packet_stat[ip]["external ports"][p_port_dst]["#packet"] += 1
-            packet_stat[ip]["external ports"][p_port_dst]["traffic in bytes"] += p_size
-
-            packet_stat[ip]["protocols"][p_proto]["#packet"] += 1
-            packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] += p_size
-
-
-        elif p_ip_dst == ip:
-            # incoming packet
-            packet_stat[ip]["incoming traffic"]["#packet"] += 1
-            packet_stat[ip]["incoming traffic"]["traffic in bytes"] += p_size
-            
-            if packet_stat[ip]["external ips"].get(p_ip_src) == None:
-                packet_stat[ip]["external IPs"][p_ip_src]["#incoming packet"] = 0
-                packet_stat[ip]["external IPs"][p_ip_src]["incoming traffic in bytes"] = 0
-                packet_stat[ip]["external IPs"][p_ip_src]["#incoming packet"] = 0
-                packet_stat[ip]["external IPs"][p_ip_src]["incoming traffic in bytes"] = 0
-
-            if packet_stat[ip]["internal ports"].get(p_port_dst) == None:
-                packet_stat[ip]["internal ports"][p_port_dst]["#packet"] = 0
-                packet_stat[ip]["internal ports"][p_port_dst]["traffic in bytes"] = 0
-
-            if packet_stat[ip]["external ports"].get(p_port_src) == None:
-                packet_stat[ip]["external ports"][p_port_src]["#packet"] = 0
-                packet_stat[ip]["external ports"][p_port_src]["traffic in bytes"] = 0
-            
-            if packet_stat[ip]["protocols"].get(p_proto) == None:
-                packet_stat[ip]["protocols"][p_proto] = {}
-                packet_stat[ip]["protocols"][p_proto]["#packet"] = 0
-                packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] = 0
-
-            # update info
-            packet_stat[ip]["external IPs"][p_ip_src]["#incoming packet"] += 1
-            packet_stat[ip]["external IPs"][p_ip_src]["incoming traffic in bytes"] += p_size
-
-            packet_stat[ip]["internal ports"][p_port_dst]["#packet"] += 1
-            packet_stat[ip]["internal ports"][p_port_dst]["traffic in bytes"] += p_size
-            packet_stat[ip]["external ports"][p_port_src]["#packet"] += 1
-            packet_stat[ip]["external ports"][p_port_src]["traffic in bytes"] += p_size
-
-            packet_stat[ip]["protocols"][p_proto]["#packet"] += 1
-            packet_stat[ip]["protocols"][p_proto]["traffic in bytes"] += p_size
 
 # def get_attr_for_ip(ip_addr):
 #     """Get a pre-defined set of attributes for the given IP address
@@ -579,21 +480,58 @@ def update_local_database():
 #                 packet_in += 1
 
 
-start_time = datetime.now()
+#start_time = datetime.now()
 
 filename='./data/23Mar_pcap.pcap'
 f = open(filename, 'rb')
 print("file successfully opened")
 pcap = dpkt.pcap.Reader(f)
 
-monitor_window = 60   # size of the time window in seconds
-threadlock = threading.Lock()
+monitor_window = 60   # size of the time window in seconds, according to the pcap timestamp
+
 
 # ips under monitoring
-target_ips = []
-
-timerThread = timerThread()
-timerThread.start()
+target_ips = ["129.94.0.197",\
+    "129.94.0.196",\
+    "129.94.0.193",\
+    "129.94.0.192",\
+    "149.171.124.33",\
+    "149.171.144.58",\
+    "149.171.197.177",\
+    "129.94.52.190",\
+    "149.171.144.50",\
+    "149.171.194.50",\
+    "149.171.184.237",\
+    "149.171.155.194",\
+    "149.171.105.163",\
+    "129.94.164.21",\
+    "149.171.207.19",\
+    "149.171.99.112",\
+    "149.171.99.18",\
+    "149.171.194.17",\
+    "149.171.193.32",\
+    "129.94.8.226",\
+    "129.94.8.238",\
+    "129.94.8.163",\
+    "129.94.8.160",\
+    "129.94.8.77",\
+    "129.94.8.81",\
+    "129.94.8.173",\
+    "129.94.8.237",\
+    "149.171.12.3",\
+    "129.94.254.213",\
+    "149.171.66.213",\
+    "149.171.0.34",\
+    "149.171.133.31",\
+    "149.171.148.27",\
+    "129.94.183.252",\
+    "149.171.168.194",\
+    "149.171.29.35",\
+    "149.171.99.123",\
+    "149.171.99.99",\
+    "149.171.99.94",\
+    "149.171.99.185"\
+    ]
 
 p_id = None
 p_time = None
@@ -606,66 +544,74 @@ p_proto = None
 p_port_src = None
 p_port_dst = None
 
-# create local database
+# create local da'tabase
 local_database = IpStat(target_ips)
 
 #header = ['Packet ID', 'TIME', 'Size', 'eth.src', 'eth.dst', 'IP.src', 'IP.dst', 'IP.proto', 'port.src', 'port.dst']
 
+currTime = None
 
-
-count = 0
+#count = 0'
 for timestamp, buf in pcap:
+    if currTime == None:
+        currTime = int(timestamp)
 
-    count += 1
-
-    eth = dpkt.ethernet.Ethernet(buf)
-
-    if not isinstance(eth.data, dpkt.ip.IP):
-        continue
-
-    ip = eth.data
-
-    do_not_fragment = bool(ip.off & dpkt.ip.IP_DF)
-    more_fragments = bool(ip.off & dpkt.ip.IP_MF)
-    fragment_offset = ip.off & dpkt.ip.IP_OFFMASK
-
-    srcport = 0
-    dstport = 0
-    if ip.p == dpkt.ip.IP_PROTO_TCP:
-        TCP = ip.data
-        srcport = TCP.sport
-        dstport = TCP.dport
-    elif ip.p == dpkt.ip.IP_PROTO_UDP:
-        UDP = ip.data
-        srcport = UDP.sport
-        dstport = UDP.dport
-    else:
-        continue
-
-    # Print out the info
-    # Print out the timestamp in UTC
-    '''print(f'{count}. Timestamp: {datetime.datetime.utcfromtimestamp(timestamp)}, len: {len(buf)}')
-    print(f'Ethernet Frame: {mac_addr(eth.src)}, {mac_addr(eth.dst)}, {eth.type}')
-    print(f'IP: {inet_to_str(ip.src)} -> {inet_to_str(ip.dst)} proto: {ip.p}')
-    print(f"port.src: {srcport}, port.dst: {dstport}")'''
-    #   (len=%d ttl=%d DF=%d MF=%d offset=%d)')
-    #      (, , ip.len, ip.ttl, do_not_fragment, more_fragments, fragment_offset)
-    # write the data
-
-    # 
-    p_id = count
-    p_time = int(timestamp)
-    p_size = len(buf)
-    p_eth_src = mac_addr(eth.src)
-    p_eth_dst = mac_addr(eth.eth)
-    p_ip_src = inet_to_str(ip.src)
-    p_ip_dst = inet_to_str(ip.dst)
-    p_proto = ip.p
-    p_port_src = srcport
-    p_port_dst = dstport
-
-    local_database.update_stat(p_id, p_time, p_size, p_eth_src, p_eth_dst, p_ip_src, p_ip_dst, p_proto, p_port_src, p_port_dst)
+    if (int(timestamp) < (currTime + 60)):
     
 
+        eth = dpkt.ethernet.Ethernet(buf)
+
+        if not isinstance(eth.data, dpkt.ip.IP):
+            continue
+
+        ip = eth.data
+
+        do_not_fragment = bool(ip.off & dpkt.ip.IP_DF)
+        more_fragments = bool(ip.off & dpkt.ip.IP_MF)
+        fragment_offset = ip.off & dpkt.ip.IP_OFFMASK
+
+        srcport = 0
+        dstport = 0
+        if ip.p == dpkt.ip.IP_PROTO_TCP:
+            TCP = ip.data
+            srcport = TCP.sport
+            dstport = TCP.dport
+        elif ip.p == dpkt.ip.IP_PROTO_UDP:
+            UDP = ip.data
+            srcport = UDP.sport
+            dstport = UDP.dport
+        else:
+            continue
+
+        # Print out the info
+        # Print out the timestamp in UTC
+        '''print(f'{count}. Timestamp: {datetime.datetime.utcfromtimestamp(timestamp)}, len: {len(buf)}')
+        print(f'Ethernet Frame: {mac_addr(eth.src)}, {mac_addr(eth.dst)}, {eth.type}')
+        print(f'IP: {inet_to_str(ip.src)} -> {inet_to_str(ip.dst)} proto: {ip.p}')
+        print(f"port.src: {srcport}, port.dst: {dstport}")'''
+        #   (len=%d ttl=%d DF=%d MF=%d offset=%d)')
+        #      (, , ip.len, ip.ttl, do_not_fragment, more_fragments, fragment_offset)
+        # write the data
+
+        # 
+    #    p_id = count
+        p_time = int(timestamp)
+        p_size = len(buf)
+        p_eth_src = mac_addr(eth.src)
+        p_eth_dst = mac_addr(eth.dst)
+        p_ip_src = inet_to_str(ip.src)
+        p_ip_dst = inet_to_str(ip.dst)
+        p_proto = ip.get_proto(ip.p).__name__
+        p_port_src = srcport
+        p_port_dst = dstport
+
+        # update local database according to this packet
+        local_database.update_stat(p_size, p_eth_src, p_eth_dst, p_ip_src, p_ip_dst, p_proto, p_port_src, p_port_dst)
+    
+    else:
+        write_csv(local_database.analyze_features(), f"./output/training/23Mar_{str(currTime)}_{str(int(timestamp))}")
+        local_database.clear()
+        currTime = int(timestamp)
+        
 f.close()
 
