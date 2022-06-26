@@ -1,8 +1,8 @@
-from struct import pack
+# from struct import pack
 import dpkt
 import socket
 from datetime import datetime
-from dpkt.compat import compat_ord
+# from dpkt.compat import compat_ord
 import matplotlib.pyplot as plt
 import itertools
 import csv
@@ -206,22 +206,25 @@ def analyze_features():
         out_list[i].append(out_size)
 
 
+    return out_list    
+
+
  
     
 
-class timerThread(Thread):
-    def __init__():
-        super.__init__()
+# class timerThread(Thread):
+#     def __init__():
+#         super.__init__()
     
-    def run(self):
-        global packet_stat
-        # send the data to the machine learning server after every $MONITORING_WINDOW:time
-        while True:
-            time.sleep(monitor_window)
-            analyze_features()
-            # output to csv
+#     def run(self):
+#         global packet_stat
+#         # send the data to the machine learning server after every $MONITORING_WINDOW:time
+#         while True:
+#             time.sleep(monitor_window)
+#             analyze_features()
+#             # output to csv
             
-            # clean up
+#             # clean up
 
 
 '''
@@ -468,9 +471,9 @@ def get_attr_for_ip(ip_addr):
                 packet_in += 1
 
 
-start_time = datetime.now()
+# start_time = datetime.now()
 
-filename='./data/23Mar_pcap.pcap'
+filename='./23Mar.pcap'
 f = open(filename, 'rb')
 print("file successfully opened")
 pcap = dpkt.pcap.Reader(f)
@@ -481,8 +484,8 @@ threadlock = threading.Lock()
 # ips under monitoring
 target_ips = []
 
-timerThread = timerThread()
-timerThread.start()
+# timerThread = timerThread()
+# timerThread.start()
 
 p_id = None
 p_time = None
@@ -530,17 +533,17 @@ for timestamp, buf in pcap:
     else:
         continue
 
-    # Print out the info
-    # Print out the timestamp in UTC
-    '''print(f'{count}. Timestamp: {datetime.datetime.utcfromtimestamp(timestamp)}, len: {len(buf)}')
-    print(f'Ethernet Frame: {mac_addr(eth.src)}, {mac_addr(eth.dst)}, {eth.type}')
-    print(f'IP: {inet_to_str(ip.src)} -> {inet_to_str(ip.dst)} proto: {ip.p}')
-    print(f"port.src: {srcport}, port.dst: {dstport}")'''
-    #   (len=%d ttl=%d DF=%d MF=%d offset=%d)')
-    #      (, , ip.len, ip.ttl, do_not_fragment, more_fragments, fragment_offset)
-    # write the data
+    # # Print out the info
+    # # Print out the timestamp in UTC
+    # '''print(f'{count}. Timestamp: {datetime.datetime.utcfromtimestamp(timestamp)}, len: {len(buf)}')
+    # print(f'Ethernet Frame: {mac_addr(eth.src)}, {mac_addr(eth.dst)}, {eth.type}')
+    # print(f'IP: {inet_to_str(ip.src)} -> {inet_to_str(ip.dst)} proto: {ip.p}')
+    # print(f"port.src: {srcport}, port.dst: {dstport}")'''
+    # #   (len=%d ttl=%d DF=%d MF=%d offset=%d)')
+    # #      (, , ip.len, ip.ttl, do_not_fragment, more_fragments, fragment_offset)
+    # # write the data
 
-    # 
+    # # 
     p_id = count
     p_time = int(timestamp)
     p_size = len(buf)
@@ -556,4 +559,16 @@ for timestamp, buf in pcap:
     
 
 f.close()
+
+
+# header = ['Packet ID', 'TIME', 'Size', 'eth.src', 'eth.dst', 'IP.src', 'IP.dst', 'IP.proto', 'port.src', 'port.dst']
+# devIP = "149.171.0.34"
+out_list = analyze_features()
+with open('23Mar.csv', 'w', encoding='UTF8', newline='') as f:
+    writer = csv.writer(f)
+    # write the header
+    # writer.writerow(header)
+    
+    for  output in out_list:
+        writer.writerow(output)
 
