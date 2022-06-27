@@ -482,7 +482,7 @@ def write_csv(out_list, filename):
 
 #start_time = datetime.now()
 
-filename='./data/23Mar_pcap.pcap'
+filename='./data/21Feb_pcap.pcap'
 f = open(filename, 'rb')
 print("file successfully opened")
 pcap = dpkt.pcap.Reader(f)
@@ -609,7 +609,7 @@ for timestamp, buf in pcap:
         local_database.update_stat(p_size, p_eth_src, p_eth_dst, p_ip_src, p_ip_dst, p_proto, p_port_src, p_port_dst)
     
     else:
-        write_csv(local_database.analyze_features(), f"./output/training/23Mar_{str(currTime)}_{str(int(timestamp))}")
+        write_csv(local_database.analyze_features(), f"./output/training/21Feb_{str(currTime)}_{str(int(timestamp))}")
         local_database.clear()
         currTime = int(timestamp)
         
