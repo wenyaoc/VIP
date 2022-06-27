@@ -13,7 +13,10 @@ import time
 import os
 
 window_size = 5
-pcap_file_name = 'test.pcap'
+filename='./data/21Feb_pcap.pcap'
+top_num = 3
+
+
 class IpStat:
     def __init__(self, target_IPs) -> None:
         self.local_stat = {}
@@ -491,7 +494,7 @@ def write_csv(out_list, filename):
 
 #start_time = datetime.now()
 
-filename='./data/21Feb_pcap.pcap'
+
 f = open(filename, 'rb')
 print("file successfully opened")
 pcap = dpkt.pcap.Reader(f)
