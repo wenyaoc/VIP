@@ -293,6 +293,8 @@ class IpStat:
             proto_list = list(self.local_stat[ip]["protocols"].keys())
             max_pkt = 0
             max_size = 0
+            total_pkt = 0
+            total_size = 0
             max_ind_pkt = 0
             max_ind_size = 0
             ind = 0
@@ -302,6 +304,8 @@ class IpStat:
                 for pro in proto_list:
                     pkt_n = self.local_stat[ip]["protocols"][pro]["#packet"]
                     size_pkt = self.local_stat[ip]["protocols"][pro]["traffic in bytes"]
+                    total_pkt += pkt_n
+                    total_size += size_pkt
                     if pkt_n > max_pkt:
                         max_pkt = pkt_n
                         max_ind_pkt = ind
@@ -311,10 +315,14 @@ class IpStat:
                         max_ind_size = ind
                     ind += 1
                 out_pkt = proto_list[max_ind_pkt]
+                out_pkt_per = max_pkt/total_pkt
                 out_size = proto_list[max_ind_size]
+                out_size_per = max_size/total_size
             
             out_list[i].append(out_pkt)
+            out_list[i].append(out_pkt_per)
             out_list[i].append(out_size)
+            out_list[i].append(out_size_per)
 
             i += 1
 
@@ -547,9 +555,19 @@ pcap = dpkt.pcap.Reader(f)
 
 monitor_window = 60   # size of the time window in seconds, according to the pcap timestamp
 
-
+target_ip = {}
+ip_read = open('./data/Host-ShortList.csv', 'r', encoding='UTF8', newline='')
+ip_reader = csv.reader(ip_read)
+read_row = 0
+for row in ip_reader:
+    if read_row < 1:
+        read_row += 1
+        continue
+    target_ip[row[0]] = row[2]
+ip_read.close()
+target_ips = target_ip.keys()
 # ips under monitoring
-target_ips = ["129.94.0.197",\
+'''target_ips = ["129.94.0.197",\
     "129.94.0.196",\
     "129.94.0.193",\
     "129.94.0.192",\
@@ -589,7 +607,7 @@ target_ips = ["129.94.0.197",\
     "149.171.99.99",\
     "149.171.99.94",\
     "149.171.99.185"\
-    ]
+    ]'''
 
 p_id = None
 p_time = None
