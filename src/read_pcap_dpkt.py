@@ -12,12 +12,9 @@ from threading import Thread
 import time
 import os
 
-from numpy import size
-
-window_size = 5
-#filename='./test.pcap'
-filename = './data/21Feb_pcap.pcap'
-top_num = 3
+window_size = 10
+filename='./data/21Feb_pcap.pcap'
+#top_num = 3
 
 
 class IpStat:
@@ -29,6 +26,10 @@ class IpStat:
         for ip in self.target_IPs:
             if (ip_src == ip or ip_dst == ip) and self.local_stat.get(ip) == None:
                 self.local_stat[ip] = {}
+                self.local_stat["totol incoming traffic by packet"] = 0
+                self.local_stat["total incoming traffic by byte"] = 0
+                self.local_stat["totol outgoing traffic by packet"] = 0
+                self.local_stat["total outgoing traffic by byte"] = 0
                 self.local_stat[ip]["incoming traffic"] = {}
                 self.local_stat[ip]["incoming traffic"]["#packet"] = 0
                 self.local_stat[ip]["incoming traffic"]["traffic in bytes"] = 0
@@ -43,9 +44,14 @@ class IpStat:
 
             if ip_src == ip:
                 # outgoing packet
+                self.local_stat["total outgoing traffic by packet"] += 1
+                self.local_stat["total outgoing traffic by byte"] += size
+                
                 self.local_stat[ip]["outgoing traffic"]["#packet"] += 1
                 self.local_stat[ip]["outgoing traffic"]["traffic in bytes"] += size
                 
+
+
                 if self.local_stat[ip]["external IPs"].get(ip_dst) == None:
                     self.local_stat[ip]["external IPs"][ip_dst] = {}
                     self.local_stat[ip]["external IPs"][ip_dst]["#incoming packet"] = 0
@@ -83,6 +89,10 @@ class IpStat:
 
             elif ip_dst == ip:
                 # incoming packet
+
+                self.local_stat["total incoming traffic by packet"] += 1
+                self.local_stat["total incoming traffic by byte"] += size
+
                 self.local_stat[ip]["incoming traffic"]["#packet"] += 1
                 self.local_stat[ip]["incoming traffic"]["traffic in bytes"] += size
                 
@@ -124,8 +134,8 @@ class IpStat:
         Analyze local database and generate features
         return a 1 dimension dictionary
     '''
-    # [ip, in rate, out rate, in bite, out bite, avg in size, avg out size, \
-    # top ext ip by pkt, top ext ip by size, total ex IP, top in port(pkt/%/byte/%), top out port(pkt/%/byte/%), top proto(pkt%/byte%)]
+    # [ip, start_time, end_time, in rate, out rate, in bite, out bite, avg in size, avg out size, 
+    # \ top ext ip by pkt, top ext ip by size, total ex IP, top in port(pkt/%/byte/%), top out port(pkt/%/byte/%), top proto(pkt/byte)]
     def analyze_features(self):
         out_list = []
         i = 0
@@ -135,7 +145,8 @@ class IpStat:
 
             # start to generate IP specific start
             out_list[i].append(ip)
-
+            out_list[i].append(currTime)
+            out_list[i].append(currTime + window_size)
             if self.local_stat.get(ip) == None:
                 out_list[i].extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "/", "/"])
                 i += 1 
@@ -373,20 +384,10 @@ def plot_piechart(dic, chartName, threshold):
     plt.show()
 
 
-def write_csv(out_list, filename):
-    header = ["IP", "in rate", "out rate", "in byte", "out byte", "avg in size", "avg out size", \
-        "top ext ip by pkt", "top ext ip by size", \
-        "number of external IP", "top internal port(pkt)","top internal port(pkt)%", "top internal port(byte)", \
-        "top internal port(byte)%","top external port(pkt)","top external port(pkt)%", "top external port(byte)","top external port(byte)%",\
-        "top proto(pkt)", "top proto(byte)"]
-    # devIP = ""149.171.0.34"
-    with open(filename + '.csv', 'w', encoding='UTF8', newline='') as f:
-        writer = csv.writer(f)
-        # write the header
-        writer.writerow(header)
-
-        for output in out_list:
-            writer.writerow(output)
+def write_csv(out_list):
+    for output in out_list:
+        writer.writerow(output)
+        print("hellos")
 
 
 
@@ -538,6 +539,16 @@ def write_csv(out_list, filename):
 
 #start_time = datetime.now()
 
+header = ["IP", "start time", "end time", "#incoming packet", "#outgoing packet", "incoming traffic/byte", "outgoing traffic/byte", "avg incoming packet size", "avg outgoing packet size", \
+        "top external IP%(pkt)", "top external IP%(size)", \
+        "number of external IP", "top internal port(pkt)","top internal port(pkt)%", "top internal port(byte)", \
+        "top internal port%(byte)","top external port(pkt)","top external port(pkt)%", "top external port(byte)","top external port(byte)%",\
+        "top proto(pkt)", "top proto(byte)"]
+        
+csvf = open("./output/training/21Feb_train.csv", 'w', encoding='UTF8', newline='')  
+writer = csv.writer(csvf)
+# write the header
+writer.writerow(header)
 
 f = open(filename, 'rb')
 print("file successfully opened")
@@ -664,7 +675,7 @@ for timestamp, buf in pcap:
         # write the data
 
         # 
-    #    p_id = count
+        #p_id = count
         p_time = int(timestamp)
         p_size = len(buf)
         p_eth_src = mac_addr(eth.src)
@@ -679,9 +690,11 @@ for timestamp, buf in pcap:
         local_database.update_stat(p_size, p_eth_src, p_eth_dst, p_ip_src, p_ip_dst, p_proto, p_port_src, p_port_dst)
     
     else:
-        write_csv(local_database.analyze_features(), f"./output/training/21Feb_{str(currTime)}_{str(int(timestamp))}")
+        
+        write_csv(local_database.analyze_features())
         local_database.clear()
-        currTime = int(timestamp)
+        currTime += window_size
         
 f.close()
+csvf.close()
 
