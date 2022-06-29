@@ -144,6 +144,7 @@ class IpStat:
 
             # start to generate IP specific start
             out_list[i].append(ip)
+            out_list[i].append(target_IP_types[ip])
             out_list[i].append(currTime)
             out_list[i].append(currTime + window_size)
             if self.local_stat.get(ip) == None:
@@ -555,7 +556,7 @@ pcap = dpkt.pcap.Reader(f)
 
 monitor_window = 60   # size of the time window in seconds, according to the pcap timestamp
 
-target_ip = {}
+target_IP_types = {}
 ip_read = open('./data/Host-ShortList.csv', 'r', encoding='UTF8', newline='')
 ip_reader = csv.reader(ip_read)
 read_row = 0
@@ -563,9 +564,9 @@ for row in ip_reader:
     if read_row < 1:
         read_row += 1
         continue
-    target_ip[row[0]] = row[2]
+    target_IP_types[row[0]] = row[2]
 ip_read.close()
-target_ips = target_ip.keys()
+target_IPs = list(target_IP_types.keys())
 # ips under monitoring
 '''target_ips = ["129.94.0.197",\
     "129.94.0.196",\
