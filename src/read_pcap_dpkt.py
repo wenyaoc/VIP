@@ -13,7 +13,7 @@ import time
 import os
 
 window_size = 10
-filename='./data/21Feb_pcap.pcap'
+filename='./test.pcap'
 #top_num = 3
 
 
@@ -26,9 +26,9 @@ class IpStat:
         for ip in self.target_IPs:
             if (ip_src == ip or ip_dst == ip) and self.local_stat.get(ip) == None:
                 self.local_stat[ip] = {}
-                self.local_stat["totol incoming traffic by packet"] = 0
+                self.local_stat["total incoming traffic by packet"] = 0
                 self.local_stat["total incoming traffic by byte"] = 0
-                self.local_stat["totol outgoing traffic by packet"] = 0
+                self.local_stat["total outgoing traffic by packet"] = 0
                 self.local_stat["total outgoing traffic by byte"] = 0
                 self.local_stat[ip]["incoming traffic"] = {}
                 self.local_stat[ip]["incoming traffic"]["#packet"] = 0
@@ -153,12 +153,31 @@ class IpStat:
                 continue
 
         # packet rate(incoming/outgoing/bidirection)
-            out_list[i].append(self.local_stat[ip]["incoming traffic"]["#packet"]/window_size)
-            out_list[i].append(self.local_stat[ip]["outgoing traffic"]["#packet"]/window_size)
+
+            if self.local_stat["total incoming traffic by packet"] != 0:
+                out_list[i].append(self.local_stat[ip]["incoming traffic"]["#packet"]/\
+                            self.local_stat["total incoming traffic by packet"])
+            else :
+                out_list[i].append(0)
+
+            if self.local_stat["total outgoing traffic by packet"] != 0:
+                out_list[i].append(self.local_stat[ip]["outgoing traffic"]["#packet"]/\
+                                self.local_stat["total outgoing traffic by packet"])
+            else:
+                out_list[i].append(0)
         
         # byte rate(incoming/outgoing/bidirection)
-            out_list[i].append(self.local_stat[ip]["incoming traffic"]["traffic in bytes"]/window_size)
-            out_list[i].append(self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]/window_size)
+            if self.local_stat["total incoming traffic by byte"] != 0:
+                out_list[i].append(self.local_stat[ip]["incoming traffic"]["traffic in bytes"]/\
+                                self.local_stat["total incoming traffic by byte"])
+            else:
+                out_list[i].append(0)
+            
+            if self.local_stat["total outgoing traffic by byte"] != 0:
+                out_list[i].append(self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]/\
+                            self.local_stat["total outgoing traffic by byte"])
+            else:
+                out_list[i].append(0)
         
         # average packet size(incoming/outgoing)
             if out_list[i][-2] > 0:
@@ -539,7 +558,7 @@ def write_csv(out_list):
 
 #start_time = datetime.now()
 
-header = ["IP", "start time", "end time", "#incoming packet", "#outgoing packet", "incoming traffic/byte", "outgoing traffic/byte", "avg incoming packet size", "avg outgoing packet size", \
+header = ["IP", "start time", "end time", "#incoming packet%", "#outgoing packet%", "incoming traffic/byte%", "outgoing traffic/byte%", "avg incoming packet size", "avg outgoing packet size", \
         "top external IP%(pkt)", "top external IP%(size)", \
         "number of external IP", "top internal port(pkt)","top internal port(pkt)%", "top internal port(byte)", \
         "top internal port%(byte)","top external port(pkt)","top external port(pkt)%", "top external port(byte)","top external port(byte)%",\
@@ -566,7 +585,7 @@ for row in ip_reader:
         continue
     target_ip[row[0]] = row[2]
 ip_read.close()
-target_ips = target_ip.keys()
+target_ips = list(target_ip.keys())
 # ips under monitoring
 '''target_ips = ["129.94.0.197",\
     "129.94.0.196",\
