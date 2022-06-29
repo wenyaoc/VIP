@@ -20,16 +20,19 @@ filename='./test.pcap'
 class IpStat:
     def __init__(self, target_IPs) -> None:
         self.local_stat = {}
+        self.local_stat["total incoming traffic by packet"] = 0
+        self.local_stat["total incoming traffic by byte"] = 0
+        self.local_stat["total outgoing traffic by packet"] = 0
+        self.local_stat["total outgoing traffic by byte"] = 0
         self.target_IPs = target_IPs
 
     def update_stat(self, size, eth_src, eth_dst, ip_src, ip_dst, proto, port_src, port_dst):
+        
         for ip in self.target_IPs:
+
             if (ip_src == ip or ip_dst == ip) and self.local_stat.get(ip) == None:
                 self.local_stat[ip] = {}
-                self.local_stat["total incoming traffic by packet"] = 0
-                self.local_stat["total incoming traffic by byte"] = 0
-                self.local_stat["total outgoing traffic by packet"] = 0
-                self.local_stat["total outgoing traffic by byte"] = 0
+                
                 self.local_stat[ip]["incoming traffic"] = {}
                 self.local_stat[ip]["incoming traffic"]["#packet"] = 0
                 self.local_stat[ip]["incoming traffic"]["traffic in bytes"] = 0
@@ -351,6 +354,10 @@ class IpStat:
     def clear(self):
         """Create an empty data structure for holding IP stats"""
         self.local_stat = {}
+        self.local_stat["total incoming traffic by packet"] = 0
+        self.local_stat["total incoming traffic by byte"] = 0
+        self.local_stat["total outgoing traffic by packet"] = 0
+        self.local_stat["total outgoing traffic by byte"] = 0
         
 
 
