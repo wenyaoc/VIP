@@ -12,6 +12,10 @@ from threading import Thread
 import time
 import os
 
+window_size = 5
+filename='./data/21Feb_pcap.pcap'
+top_num = 3
+
 
 class IpStat:
     def __init__(self, target_IPs) -> None:
@@ -117,7 +121,7 @@ class IpStat:
         return a 1 dimension dictionary
     '''
     # [ip, in rate, out rate, in bite, out bite, avg in size, avg out size, 
-    # \ top ext ip by pkt, top ext ip by size, top in port(pkt/byte), top out port(pkt/byte), top proto(pkt/byte)]
+    # \ top ext ip by pkt, top ext ip by size, total ex IP, top in port(pkt/%/byte/%), top out port(pkt/%/byte/%), top proto(pkt/byte)]
     def analyze_features(self):
         out_list = []
         i = 0
@@ -129,33 +133,40 @@ class IpStat:
             out_list[i].append(ip)
 
             if self.local_stat.get(ip) == None:
-                out_list[i].extend([0, 0, 0, 0, 0, 0, "/", "/", 0, 0, 0, 0, "/", "/"])
+                out_list[i].extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "/", "/"])
                 i += 1 
                 continue
 
         # packet rate(incoming/outgoing/bidirection)
-            out_list[i].append(self.local_stat[ip]["incoming traffic"]["#packet"])
-            out_list[i].append(self.local_stat[ip]["outgoing traffic"]["#packet"])
+            out_list[i].append(self.local_stat[ip]["incoming traffic"]["#packet"]/window_size)
+            out_list[i].append(self.local_stat[ip]["outgoing traffic"]["#packet"]/window_size)
         
         # byte rate(incoming/outgoing/bidirection)
-            out_list[i].append(self.local_stat[ip]["incoming traffic"]["traffic in bytes"])
-            out_list[i].append(self.local_stat[ip]["outgoing traffic"]["traffic in bytes"])
+            out_list[i].append(self.local_stat[ip]["incoming traffic"]["traffic in bytes"]/window_size)
+            out_list[i].append(self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]/window_size)
         
         # average packet size(incoming/outgoing)
-            avg_in_size = self.local_stat[ip]["incoming traffic"]["traffic in bytes"]\
-                        /self.local_stat[ip]["incoming traffic"]["#packet"]
-            avg_out_size = self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]\
-                        /self.local_stat[ip]["outgoing traffic"]["#packet"]
+            if out_list[i][-2] > 0:
+                avg_in_size = self.local_stat[ip]["incoming traffic"]["traffic in bytes"]\
+                            /self.local_stat[ip]["incoming traffic"]["#packet"]
+            else:
+                avg_in_size = 0
+
+            if out_list[i][-1] > 0:
+                avg_out_size = self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]\
+                            /self.local_stat[ip]["outgoing traffic"]["#packet"]
+            else:
+                avg_out_size = 0
 
             out_list[i].append(avg_in_size)
             out_list[i].append(avg_out_size)
 
-        # #external IPs
+        # external IPs
             ext_ip_list = list(self.local_stat[ip]["external IPs"].keys())
             max_pkt = 0
             max_size = 0
-            max_ind_pkt = 0
-            max_ind_size = 0
+            total_pkt = 0
+            total_size = 0
             ind = 0
             ex_ip_pkt = 'None'
             ex_ip_size = 'None'
@@ -165,24 +176,34 @@ class IpStat:
                             self.local_stat[ip]["external IPs"][ext_ip]["#outgoing packet"]
                     size_pkt = self.local_stat[ip]["external IPs"][ext_ip]["incoming traffic in bytes"] + \
                                 self.local_stat[ip]["external IPs"][ext_ip]["outgoing traffic in bytes"]
+                    total_pkt += pkt_n
+                    total_size += size_pkt
                     if pkt_n > max_pkt:
                         max_pkt = pkt_n
-                        max_ind_pkt = ind
 
                     if size_pkt > max_size:
                         max_size = size_pkt
-                        max_ind_size = ind
                     ind += 1
-                ex_ip_pkt = ext_ip_list[max_ind_pkt]
-                ex_ip_size = ext_ip_list[max_ind_size]
+                if total_pkt > 0:
+                    ex_ip_pkt = max_pkt/total_pkt
+                else :
+                    ex_ip_pkt = 0
+                
+                if total_size > 0:
+                    ex_ip_size = max_size/total_size
+                else:
+                    ex_ip_size = 0
             
             out_list[i].append(ex_ip_pkt)
             out_list[i].append(ex_ip_size)
-            
+            ext_ip_list = list(self.local_stat[ip]["external IPs"].keys())
+            out_list[i].append(len(ext_ip_list))
         # ranked ports(internal/external)
             internal_port_list = list(self.local_stat[ip]["internal ports"].keys())
             max_pkt = 0
             max_size = 0
+            total_pkt = 0
+            total_size = 0
             max_ind_pkt = 0
             max_ind_size = 0
             ind = 0
@@ -192,6 +213,8 @@ class IpStat:
                 for port_n in internal_port_list:
                     pkt_n = self.local_stat[ip]["internal ports"][port_n]["#packet"]
                     size_pkt = self.local_stat[ip]["internal ports"][port_n]["traffic in bytes"]
+                    total_pkt += pkt_n
+                    total_size += size_pkt
                     if pkt_n > max_pkt:
                         max_pkt = pkt_n
                         max_ind_pkt = ind
@@ -203,13 +226,23 @@ class IpStat:
                 out_pkt = internal_port_list[max_ind_pkt]
                 out_size = internal_port_list[max_ind_size]
             
-            out_list[i].append(out_pkt)
-            out_list[i].append(out_size)
+            if total_pkt > 0:
+                max_pkt = max_pkt/total_pkt
+            
+            if total_size > 0:
+                max_size = max_size/total_size
 
+
+            out_list[i].append(out_pkt)
+            out_list[i].append(max_pkt)
+            out_list[i].append(out_size)
+            out_list[i].append(max_size)
 
             external_port_list = list(self.local_stat[ip]["external ports"].keys())
             max_pkt = 0
             max_size = 0
+            total_pkt = 0
+            total_size = 0
             max_ind_pkt = 0
             max_ind_size = 0
             ind = 0
@@ -219,6 +252,8 @@ class IpStat:
                 for port_n in external_port_list:
                     pkt_n = self.local_stat[ip]["external ports"][port_n]["#packet"]
                     size_pkt = self.local_stat[ip]["external ports"][port_n]["traffic in bytes"]
+                    total_pkt += pkt_n
+                    total_size += size_pkt
                     if pkt_n > max_pkt:
                         max_pkt = pkt_n
                         max_ind_pkt = ind
@@ -229,9 +264,16 @@ class IpStat:
                     ind += 1
                 out_pkt = external_port_list[max_ind_pkt]
                 out_size = external_port_list[max_ind_size]
+            if total_pkt > 0:
+                max_pkt = max_pkt/total_pkt
+            
+            if total_size > 0:
+                max_size = max_size/total_size
             
             out_list[i].append(out_pkt)
+            out_list[i].append(max_pkt)
             out_list[i].append(out_size)
+            out_list[i].append(max_size)
         
         # protocol(bidirection)
             proto_list = list(self.local_stat[ip]["protocols"].keys())
@@ -321,8 +363,10 @@ def plot_piechart(dic, chartName, threshold):
 
 def write_csv(out_list, filename):
     header = ["IP", "in rate", "out rate", "in byte", "out byte", "avg in size", "avg out size", \
-        "top ext ip by pkt", "top ext ip by size", "top internal port(pkt)", "top internal port(byte)", \
-        "top external port(pkt)", "top external port(byte)", "top proto(pkt)", "top proto(byte)"]
+        "top ext ip by pkt", "top ext ip by size", \
+        "number of external IP", "top internal port(pkt)","top internal port(pkt)%", "top internal port(byte)", \
+        "top internal port(byte)%","top external port(pkt)","top external port(pkt)%", "top external port(byte)","top external port(byte)%",\
+        "top proto(pkt)", "top proto(byte)"]
     # devIP = ""149.171.0.34"
     with open(filename + '.csv', 'w', encoding='UTF8', newline='') as f:
         writer = csv.writer(f)
@@ -482,7 +526,7 @@ def write_csv(out_list, filename):
 
 #start_time = datetime.now()
 
-filename='./data/21Feb_pcap.pcap'
+
 f = open(filename, 'rb')
 print("file successfully opened")
 pcap = dpkt.pcap.Reader(f)
@@ -556,7 +600,7 @@ for timestamp, buf in pcap:
     if currTime == None:
         currTime = int(timestamp)
 
-    if (int(timestamp) < (currTime + 60)):
+    if (int(timestamp) < (currTime + window_size)):
     
 
         eth = dpkt.ethernet.Ethernet(buf)
@@ -574,10 +618,14 @@ for timestamp, buf in pcap:
         dstport = 0
         if ip.p == dpkt.ip.IP_PROTO_TCP:
             TCP = ip.data
+            if str(type(TCP)) == "<class 'bytes'>":
+                continue
             srcport = TCP.sport
             dstport = TCP.dport
         elif ip.p == dpkt.ip.IP_PROTO_UDP:
             UDP = ip.data
+            if str(type(UDP)) == "<class 'bytes'>":
+                continue
             srcport = UDP.sport
             dstport = UDP.dport
         else:
