@@ -40,6 +40,7 @@ class IpStat:
                 self.local_stat[ip]["external ports"] = {}
                 self.local_stat[ip]["protocols"] = {}
 
+
             if ip_src == ip:
                 # outgoing packet
                 self.local_stat[ip]["outgoing traffic"]["#packet"] += 1
