@@ -13,7 +13,7 @@ import time
 import os
 
 window_size = 10
-filename='./test.pcap'
+filename='./data/21Feb_pcap.pcap'
 #top_num = 3
 
 
@@ -152,7 +152,7 @@ class IpStat:
             out_list[i].append(currTime)
             out_list[i].append(currTime + window_size)
             if self.local_stat.get(ip) == None:
-                out_list[i].extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "/", "/"])
+                out_list[i].extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0,0,0,0 ])
                 i += 1 
                 continue
 
@@ -343,9 +343,9 @@ class IpStat:
                 out_size = proto_list[max_ind_size]
                 out_size_per = max_size/total_size
             
-            out_list[i].append(out_pkt)
+            #out_list[i].append(out_pkt)
             out_list[i].append(out_pkt_per)
-            out_list[i].append(out_size)
+            #out_list[i].append(out_size)
             out_list[i].append(out_size_per)
 
             i += 1
@@ -566,7 +566,7 @@ def write_csv(out_list):
 
 #start_time = datetime.now()
 
-header = ["IP", "start time", "end time", "#incoming packet%", "#outgoing packet%", "incoming traffic/byte%", "outgoing traffic/byte%", "avg incoming packet size", "avg outgoing packet size", \
+header = ["IP", "host type", "start time", "end time", "#incoming packet%", "#outgoing packet%", "incoming traffic/byte%", "outgoing traffic/byte%", "avg incoming packet size", "avg outgoing packet size", \
         "top external IP%(pkt)", "top external IP%(size)", \
         "number of external IP", "top internal port(pkt)","top internal port(pkt)%", "top internal port(byte)", \
         "top internal port%(byte)","top external port(pkt)","top external port(pkt)%", "top external port(byte)","top external port(byte)%",\
