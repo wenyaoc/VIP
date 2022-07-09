@@ -152,37 +152,32 @@ class IpStat:
             out_list[i].append(currTime)
             out_list[i].append(currTime + window_size)
             if self.local_stat.get(ip) == None:
-                out_list[i].extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0,0,0,0 ])
+                out_list[i].extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
                 i += 1 
                 continue
 
         # packet rate(incoming/outgoing/bidirection)
 
-            if self.local_stat["total incoming traffic by packet"] != 0:
-                out_list[i].append(self.local_stat[ip]["incoming traffic"]["#packet"]/\
-                            self.local_stat["total incoming traffic by packet"])
-            else :
-                out_list[i].append(0)
-
-            if self.local_stat["total outgoing traffic by packet"] != 0:
-                out_list[i].append(self.local_stat[ip]["outgoing traffic"]["#packet"]/\
-                                self.local_stat["total outgoing traffic by packet"])
+            in_pkt = self.local_stat[ip]["incoming traffic"]["#packet"]
+            out_pkt = self.local_stat[ip]["outgoing traffic"]["#packet"]
+            total_pkt = in_pkt + out_pkt
+            in_size = self.local_stat[ip]["incoming traffic"]["traffic in bytes"]
+            out_sizes = self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]
+            total_size = in_size + out_sizes
+            if total_pkt > 0:
+                out_list[i].append(in_pkt/total_pkt)
+                out_list[i].append(out_list/total_pkt)
             else:
                 out_list[i].append(0)
-        
-        # byte rate(incoming/outgoing/bidirection)
-            if self.local_stat["total incoming traffic by byte"] != 0:
-                out_list[i].append(self.local_stat[ip]["incoming traffic"]["traffic in bytes"]/\
-                                self.local_stat["total incoming traffic by byte"])
-            else:
                 out_list[i].append(0)
             
-            if self.local_stat["total outgoing traffic by byte"] != 0:
-                out_list[i].append(self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]/\
-                            self.local_stat["total outgoing traffic by byte"])
+            if total_size > 0:
+                out_list[i].append(in_size/total_size)
+                out_list[i].append(out_size/total_size)
             else:
                 out_list[i].append(0)
-        
+                out_list[i].append(0)
+
         # average packet size(incoming/outgoing)
             if out_list[i][-2] > 0:
                 avg_in_size = self.local_stat[ip]["incoming traffic"]["traffic in bytes"]\
