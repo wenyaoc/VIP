@@ -341,10 +341,10 @@ class IpStat:
                 out_size = proto_list[max_ind_size]
                 out_size_per = max_size/total_size
             
-            #out_list[i].append(out_pkt)
-            out_list[i].append(out_pkt_per)
-            #out_list[i].append(out_size)
-            out_list[i].append(out_size_per)
+            out_list[i].append(out_pkt)
+            #out_list[i].append(out_pkt_per)
+            out_list[i].append(out_size)
+            #out_list[i].append(out_size_per)
 
             i += 1
 
