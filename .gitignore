@@ -1,6 +1,9 @@
 # ignore pcap
+*.jpg
 *.pcap
-test.csv
-ns1.csv
+*.csv
+output/
+data/
 .idea
-dataset
+__pycache__
+.DS_Store
