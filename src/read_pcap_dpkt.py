@@ -13,7 +13,9 @@ import time
 import os
 
 window_size = 10
-filename='./data/21Feb_pcap.pcap'
+file_pcap = 'test.pcap'
+filename= file_pcap
+
 #top_num = 3
 
 
@@ -144,6 +146,10 @@ class IpStat:
         i = 0
         for ip in target_IPs:
             # create empty row
+            if self.local_stat.get(ip) == None:
+                #out_list[i].extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                #i += 1 
+                continue
             out_list.append([])
 
             # start to generate IP specific start
@@ -151,10 +157,7 @@ class IpStat:
             out_list[i].append(target_IP_types[ip])
             out_list[i].append(currTime)
             out_list[i].append(currTime + window_size)
-            if self.local_stat.get(ip) == None:
-                out_list[i].extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-                i += 1 
-                continue
+            
 
         # packet rate(incoming/outgoing/bidirection)
 
@@ -162,11 +165,11 @@ class IpStat:
             out_pkt = self.local_stat[ip]["outgoing traffic"]["#packet"]
             total_pkt = in_pkt + out_pkt
             in_size = self.local_stat[ip]["incoming traffic"]["traffic in bytes"]
-            out_sizes = self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]
-            total_size = in_size + out_sizes
+            out_size = self.local_stat[ip]["outgoing traffic"]["traffic in bytes"]
+            total_size = in_size + out_size
             if total_pkt > 0:
                 out_list[i].append(in_pkt/total_pkt)
-                out_list[i].append(out_list/total_pkt)
+                out_list[i].append(out_pkt/total_pkt)
             else:
                 out_list[i].append(0)
                 out_list[i].append(0)
