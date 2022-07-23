@@ -14,13 +14,14 @@ import os
 from IpStat import IpStat
 import pdb
 
-window_size = 10
+window_size = 40
 window_interval = 1
+ratio = int(window_size/window_interval)
 
 
 
 filename='./data/21Feb_pcap.pcap'
-#top_num = 3
+top_num = 3
 
 
 
@@ -227,14 +228,13 @@ def aggregate_window(sub_windows_list):
 
 
 #start_time = datetime.now()
-
 header = ["IP", "host type", "start time", "end time", "#incoming packet%", "#outgoing packet%", "incoming traffic/byte%", "outgoing traffic/byte%", "avg incoming packet size", "avg outgoing packet size", \
         "top external IP%(pkt)", "top external IP%(size)", \
         "number of external IP", "top internal port(pkt)","top internal port(pkt)%", "top internal port(byte)", \
         "top internal port%(byte)","top external port(pkt)","top external port(pkt)%", "top external port(byte)","top external port(byte)%",\
-        "top proto(pkt)", "top proto(byte)"]
+        "top proto(pkt)", "top proto(pkt)%", "top proto(byte)", "top proto(byte)%"]
         
-csvf = open("./output/training/21Feb_train.csv", 'w', encoding='UTF8', newline='')  
+csvf = open("./output/training/21Feb_train_SW.csv", 'w', encoding='UTF8', newline='')  
 writer = csv.writer(csvf)
 # write the header
 writer.writerow(header)
@@ -358,26 +358,34 @@ for timestamp, buf in pcap:
         # append currrent stat to local database
         local_database.append(curr_stat)
         # window is full
-        if len(local_database) == 6:
+        if len(local_database) == ratio:
             # first time get full
             window_IpStats = local_database[0]
             for stat in local_database[1:]:
+                #pdb.set_trace()
                 window_IpStats += stat
             print("finish first round")
             write_csv(window_IpStats.analyze_features(target_IPs, target_IP_types))
-            pdb.set_trace()
+            #pdb.set_trace()
                     
-        elif len(local_database) == 7:
+        elif len(local_database) == ratio + 1:
             if not window_IpStats:
                 raise Exception("something went wrong")
             # remove the oldest entry, add the latest
             popped = local_database.pop(0)
-            window_IpStats -= popped
-            #print("popped {} to {}".format(popped.start_time, popped.end_time))
-            window_IpStats += curr_stat
+            # window_IpStats -= popped
+            # #print("popped {} to {}".format(popped.start_time, popped.end_time))
+            # window_IpStats += curr_stat
+
+            window_IpStats = local_database[0]
+            for stat in local_database[1:]:
+                #pdb.set_trace()
+                window_IpStats += stat
+
             #print("added {} to {}".format(curr_stat.start_time, curr_stat.end_time))
+            print("generating csv")
             write_csv(window_IpStats.analyze_features(target_IPs, target_IP_types))
-            pdb.set_trace()
+            #pdb.set_trace()
         curr_time += window_interval
 
         # create a new entry

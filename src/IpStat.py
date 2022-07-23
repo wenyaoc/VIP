@@ -1,6 +1,6 @@
 from os import execv
-from numpy import int_
-
+from numpy import append, int_
+import pdb
 
 class IpStat:
     GLOBAL_TRAFFIC_KEYS = ["total incoming traffic by packet", "total incoming traffic by byte", "total outgoing traffic by packet", "total outgoing traffic by byte"]
@@ -27,8 +27,8 @@ class IpStat:
         else:
             raise Exception("only adjacent stats can be added")
 
-        for key in self.GLOBAL_TRAFFIC_KEYS:
-            result.local_stat[key] = self.local_stat[key] + other.local_stat[key]
+        # for key in self.GLOBAL_TRAFFIC_KEYS:
+        #     result.local_stat[key] = self.local_stat[key] + other.local_stat[key]
         # result.local_stat["total incoming traffic by packet"] = self.local_stat["total incoming traffic by packet"] + other.local_stat["total incoming traffic by packet"]
         # result.local_stat["total incoming traffic by byte"] = self.local_stat["total incoming traffic by byte"] + other.local_stat["total incoming traffic by byte"]
         # result.local_stat["total outgoing traffic by packet"] = self.local_stat["total outgoing traffic by packet"] + other.local_stat["total outgoing traffic by packet"]
@@ -45,12 +45,12 @@ class IpStat:
                 continue
             # new entry
             if result.local_stat.get(ip) is None:
-                result.local_stat[ip] = value
+                result.local_stat[ip] = ip_stat
             # existing entry, merge
             else:
                 # merge traffic stats
                 for key in self.HOST_TRAFFIC_KEYS:
-                    result.local_stat[ip][key] += other.local_stat[ip][key]
+                    result.local_stat[ip][key] += ip_stat[key]
                 # result.local_stat[ip]["#incoming packet"] += other.local_stat[ip]["#incoming packet"]
                 # result.local_stat[ip]["incoming traffic in bytes"] += other.local_stat[ip]["incoming traffic in bytes"]
                 # result.local_stat[ip]["#outgoing packet"] += other.local_stat[ip]["#outgoing packet"]
@@ -61,14 +61,14 @@ class IpStat:
                         result.local_stat[ip]["external IPs"][ext_IP] = ext_IP_stat
                     else:
                         for key in self.HOST_TRAFFIC_KEYS:
-                            result.local_stat[ip]["external IPs"][ext_IP][key] += other.local_stat[ip]["external IPs"][ext_IP][key]
+                            result.local_stat[ip]["external IPs"][ext_IP][key] += ext_IP_stat[key]
                 
                 for int_port, int_port_stat in ip_stat["internal ports"].items():
                     if result.local_stat[ip]["internal ports"].get(int_port) is None:
                         result.local_stat[ip]["internal ports"][int_port] = int_port_stat
                     else:
                         for key in ["#packet", "traffic in bytes"]:
-                            result.local_stat[ip]["internal ports"][int_port][key] += other.local_stat[ip]["internal ports"][int_port][key]
+                            result.local_stat[ip]["internal ports"][int_port][key] += int_port_stat[key]
 
                         # result.local_stat[ip]["external IPs"][ext_IP]["#incoming packet"] += other.local_stat[ip]["external IPs"][ext_IP]["#incoming packet"]
                         # result.local_stat[ip]["external IPs"][ext_IP]["incoming traffic in bytes"] += other.local_stat[ip]["external IPs"][ext_IP]["incoming traffic in bytes"]
@@ -80,7 +80,7 @@ class IpStat:
                         result.local_stat[ip]["external ports"][ext_port] = ext_port_stat
                     else:
                         for key in ["#packet", "traffic in bytes"]:
-                            result.local_stat[ip]["external ports"][ext_port][key] += other.local_stat[ip]["external ports"][ext_port][key]
+                            result.local_stat[ip]["external ports"][ext_port][key] += ext_port_stat[key]
 
 
                 for proto, proto_stat in ip_stat["protocols"].items():
@@ -88,7 +88,7 @@ class IpStat:
                         result.local_stat[ip]["protocols"][proto] = proto_stat
                     else:
                         for key in ["#packet", "traffic in bytes"]:
-                            result.local_stat[ip]["protocols"][proto][key] += other.local_stat[ip]["protocols"][proto][key]
+                            result.local_stat[ip]["protocols"][proto][key] += proto_stat[key]
         return result
 
 
@@ -102,16 +102,18 @@ class IpStat:
         else:
             raise Exception("only head or tail of the stat can be cut")
 
-        for key in self.GLOBAL_TRAFFIC_KEYS:
-            result.local_stat[key] = self.local_stat[key] - other.local_stat[key]
+        # do a deep copy
+        for ip, ip_stat in self.local_stat.items():
+            result.local_stat[ip] = ip_stat
+
+        # for key in self.GLOBAL_TRAFFIC_KEYS:
+        #     result.local_stat[key] = self.local_stat[key] - other.local_stat[key]
         # result.local_stat["total incoming traffic by packet"] = self.local_stat["total incoming traffic by packet"] + other.local_stat["total incoming traffic by packet"]
         # result.local_stat["total incoming traffic by byte"] = self.local_stat["total incoming traffic by byte"] + other.local_stat["total incoming traffic by byte"]
         # result.local_stat["total outgoing traffic by packet"] = self.local_stat["total outgoing traffic by packet"] + other.local_stat["total outgoing traffic by packet"]
         # result.local_stat["total outgoing traffic by byte"] = self.local_stat["total outgoing traffic by byte"] + other.local_stat["total outgoing traffic by byte"]
 
-        # do a deep copy
-        for ip, ip_stat in self.local_stat.items():
-            result.local_stat[ip] = ip_stat
+        
 
         for ip, ip_stat in other.local_stat.items():
             # found the entry in
@@ -135,6 +137,7 @@ class IpStat:
 
                 for ext_IP, ext_IP_stat in ip_stat["external IPs"].items():
                     if not result.local_stat[ip]["external IPs"].get(ext_IP):
+                        pdb.set_trace()
                         raise Exception("something went wrong")
                     else:
                         for key in self.HOST_TRAFFIC_KEYS:
@@ -299,49 +302,58 @@ class IpStat:
     # [ip, start_time, end_time, in rate, out rate, in bite, out bite, avg in size, avg out size, 
     # \ top ext ip by pkt, top ext ip by size, total ex IP, top in port(pkt/%/byte/%), top out port(pkt/%/byte/%), top proto(pkt/byte)]
     def analyze_features(self, target_IPs, target_IP_types):
+        OUTPUT_HEADER = ["IP", "host type", "start time", "end time", "#incoming packet%", "#outgoing packet%", "incoming traffic/byte%", "outgoing traffic/byte%", "avg incoming packet size", "avg outgoing packet size", \
+        "top external IP%(pkt)", "top external IP%(size)", \
+        "number of external IP", "top internal port(pkt)","top internal port(pkt)%", "top internal port(byte)", \
+        "top internal port%(byte)","top external port(pkt)","top external port(pkt)%", "top external port(byte)","top external port(byte)%",\
+        "top proto(pkt)", "top proto(pkt)%", "top proto(byte)", "top proto(byte)%"]
+
         out_list = []
+        #out_list.append(OUTPUT_HEADER)
         i = 0
         for ip in target_IPs:
-            # create empty row
             out_list.append([])
-
-            # start to generate IP specific start
             out_list[i].append(ip)
             out_list[i].append(target_IP_types[ip])
             out_list[i].append(self.start_time)
             out_list[i].append(self.end_time)
+            
+            # create empty row
             if self.local_stat.get(ip) == None:
-                out_list[i].extend([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0,0,0,0 ])
+                for k in range(4, len(OUTPUT_HEADER)):
+                    if (OUTPUT_HEADER[k] == "top proto(pkt)" or OUTPUT_HEADER[k] == "top proto(byte)"):
+                        out_list[i].append("/")
+                    else:
+                        out_list[i].append(0)
                 i += 1 
                 continue
+            
+
+            # start to generate IP specific start
+            
+            
 
         # packet rate(incoming/outgoing/bidirection)
-
-            if self.local_stat["total incoming traffic by packet"] != 0:
-                out_list[i].append(self.local_stat[ip]["#incoming packet"]/\
-                            self.local_stat["total incoming traffic by packet"])
-            else :
-                out_list[i].append(0)
-
-            if self.local_stat["total outgoing traffic by packet"] != 0:
-                out_list[i].append(self.local_stat[ip]["#outgoing packet"]/\
-                                self.local_stat["total outgoing traffic by packet"])
+            in_pkt = self.local_stat[ip]["#incoming packet"]
+            out_pkt = self.local_stat[ip]["#outgoing packet"]
+            total_pkt = in_pkt + out_pkt
+            in_size = self.local_stat[ip]["incoming traffic in bytes"]
+            out_size = self.local_stat[ip]["outgoing traffic in bytes"]
+            total_size = in_size + out_size
+            if total_pkt > 0:
+                out_list[i].append(in_pkt/total_pkt)
+                out_list[i].append(out_pkt/total_pkt)
             else:
                 out_list[i].append(0)
-        
-        # byte rate(incoming/outgoing/bidirection)
-            if self.local_stat["total incoming traffic by byte"] != 0:
-                out_list[i].append(self.local_stat[ip]["incoming traffic in bytes"]/\
-                                self.local_stat["total incoming traffic by byte"])
-            else:
                 out_list[i].append(0)
             
-            if self.local_stat["total outgoing traffic by byte"] != 0:
-                out_list[i].append(self.local_stat[ip]["outgoing traffic in bytes"]/\
-                            self.local_stat["total outgoing traffic by byte"])
+            if total_size > 0:
+                out_list[i].append(in_size/total_size)
+                out_list[i].append(out_size/total_size)
             else:
                 out_list[i].append(0)
-        
+                out_list[i].append(0)
+
         # average packet size(incoming/outgoing)
             if out_list[i][-2] > 0:
                 avg_in_size = self.local_stat[ip]["incoming traffic in bytes"]\
@@ -502,14 +514,15 @@ class IpStat:
                 out_size = proto_list[max_ind_size]
                 out_size_per = max_size/total_size
             
-            #out_list[i].append(out_pkt)
+            out_list[i].append(out_pkt)
             out_list[i].append(out_pkt_per)
-            #out_list[i].append(out_size)
+            out_list[i].append(out_size)
             out_list[i].append(out_size_per)
 
             i += 1
 
         return out_list
+
 
     def clear(self):
         """Create an empty data structure for holding IP stats"""
