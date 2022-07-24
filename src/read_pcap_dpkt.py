@@ -14,14 +14,14 @@ import os
 from IpStat import IpStat
 import pdb
 
-window_size = 40
+window_size = 45
 window_interval = 1
 ratio = int(window_size/window_interval)
 
 
 
 filename='./data/21Feb_pcap.pcap'
-top_num = 3
+top_num = IpStat.top_num
 
 
 
@@ -228,12 +228,16 @@ def aggregate_window(sub_windows_list):
 
 
 #start_time = datetime.now()
-header = ["IP", "host type", "start time", "end time", "#incoming packet%", "#outgoing packet%", "incoming traffic/byte%", "outgoing traffic/byte%", "avg incoming packet size", "avg outgoing packet size", \
+'''header = ["IP", "host type", "start time", "end time", "#incoming packet%", "#outgoing packet%", "incoming traffic/byte%", "outgoing traffic/byte%", "avg incoming packet size", "avg outgoing packet size", \
         "top external IP%(pkt)", "top external IP%(size)", \
         "number of external IP", "top internal port(pkt)","top internal port(pkt)%", "top internal port(byte)", \
         "top internal port%(byte)","top external port(pkt)","top external port(pkt)%", "top external port(byte)","top external port(byte)%",\
-        "top proto(pkt)", "top proto(pkt)%", "top proto(byte)", "top proto(byte)%"]
-        
+        "top proto(pkt)", "top proto(pkt)%", "top proto(byte)", "top proto(byte)%"]'''
+
+header =IpStat.OUTPUT_HEADER
+
+
+
 csvf = open("./output/training/21Feb_train_SW.csv", 'w', encoding='UTF8', newline='')  
 writer = csv.writer(csvf)
 # write the header

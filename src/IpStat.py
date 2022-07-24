@@ -3,6 +3,18 @@ from numpy import append, int_
 import pdb
 
 class IpStat:
+    top_num = 3
+    OUTPUT_HEADER = ["IP", "host type", "start time", "end time", "#incoming packet%", "#outgoing packet%",\
+                     "incoming traffic/byte%", "outgoing traffic/byte%", "avg incoming packet size",\
+                     "avg outgoing packet size", "top external IP%(pkt)", "top external IP%(size)", "number of external IP"]
+    for i in range(1, top_num+1):
+        OUTPUT_HEADER += ["top "+str(i)+" internal port(pkt)","top "+str(i)+" internal port(pkt)%",\
+                            "top "+str(i)+" internal port(byte)", "top "+str(i)+" internal port%(byte)"]
+    for i in range(1, top_num+1):
+        OUTPUT_HEADER += ["top "+str(i)+" external port(pkt)","top "+str(i)+" external port(pkt)%", \
+                        "top "+str(i)+" external port(byte)","top "+str(i)+" external port(byte)%"]
+    OUTPUT_HEADER += ["top proto(pkt)", "top proto(pkt)%", "top proto(byte)", "top proto(byte)%"]
+    
     GLOBAL_TRAFFIC_KEYS = ["total incoming traffic by packet", "total incoming traffic by byte", "total outgoing traffic by packet", "total outgoing traffic by byte"]
     HOST_TRAFFIC_KEYS = ["#incoming packet", "incoming traffic in bytes", "#outgoing packet", "outgoing traffic in bytes"] 
     HOST_SPC_KEYS = ["external IPs", "internal ports", "external ports", "protocols"]
@@ -182,13 +194,6 @@ class IpStat:
                 for key in self.HOST_TRAFFIC_KEYS:
                     self.local_stat[ip][key] = 0
 
-                # self.local_stat[ip]["incoming traffic"] = {}
-                # self.local_stat[ip]["# incoming packet"] = 0
-                # self.local_stat[ip]["incoming traffic"]["traffic in bytes"] = 0
-                # self.local_stat[ip]["outgoing traffic"] = {}
-                # self.local_stat[ip]["outgoing traffic"]["#packet"] = 0
-                # self.local_stat[ip]["outgoing traffic"]["traffic in bytes"] = 0
-
                 for key in self.HOST_SPC_KEYS:
                     self.local_stat[ip][key] = {}
 
@@ -302,12 +307,7 @@ class IpStat:
     # [ip, start_time, end_time, in rate, out rate, in bite, out bite, avg in size, avg out size, 
     # \ top ext ip by pkt, top ext ip by size, total ex IP, top in port(pkt/%/byte/%), top out port(pkt/%/byte/%), top proto(pkt/byte)]
     def analyze_features(self, target_IPs, target_IP_types):
-        OUTPUT_HEADER = ["IP", "host type", "start time", "end time", "#incoming packet%", "#outgoing packet%", "incoming traffic/byte%", "outgoing traffic/byte%", "avg incoming packet size", "avg outgoing packet size", \
-        "top external IP%(pkt)", "top external IP%(size)", \
-        "number of external IP", "top internal port(pkt)","top internal port(pkt)%", "top internal port(byte)", \
-        "top internal port%(byte)","top external port(pkt)","top external port(pkt)%", "top external port(byte)","top external port(byte)%",\
-        "top proto(pkt)", "top proto(pkt)%", "top proto(byte)", "top proto(byte)%"]
-
+        
         out_list = []
         #out_list.append(OUTPUT_HEADER)
         i = 0
@@ -320,8 +320,8 @@ class IpStat:
             
             # create empty row
             if self.local_stat.get(ip) == None:
-                for k in range(4, len(OUTPUT_HEADER)):
-                    if (OUTPUT_HEADER[k] == "top proto(pkt)" or OUTPUT_HEADER[k] == "top proto(byte)"):
+                for k in range(4, len(self.OUTPUT_HEADER)):
+                    if (self.OUTPUT_HEADER[k] == "top proto(pkt)" or self.OUTPUT_HEADER[k] == "top proto(byte)"):
                         out_list[i].append("/")
                     else:
                         out_list[i].append(0)
@@ -409,80 +409,82 @@ class IpStat:
             out_list[i].append(len(ext_ip_list))
         # ranked ports(internal/external)
             internal_port_list = list(self.local_stat[ip]["internal ports"].keys())
-            max_pkt = 0
-            max_size = 0
+            max_pkt = [0]*self.top_num
+            max_size = [0]*self.top_num
             total_pkt = 0
             total_size = 0
-            max_ind_pkt = 0
-            max_ind_size = 0
+            max_ind_pkt = [-1]*self.top_num
+            max_ind_size = [-1]*self.top_num
             ind = 0
-            out_pkt = 'None'
-            out_size = 'None'
             if len(internal_port_list) > 0:
                 for port_n in internal_port_list:
                     pkt_n = self.local_stat[ip]["internal ports"][port_n]["#packet"]
                     size_pkt = self.local_stat[ip]["internal ports"][port_n]["traffic in bytes"]
                     total_pkt += pkt_n
                     total_size += size_pkt
-                    if pkt_n > max_pkt:
-                        max_pkt = pkt_n
-                        max_ind_pkt = ind
+                    if pkt_n > max_pkt[-1]:
+                        max_pkt.pop(0)
+                        max_pkt.append(pkt_n)
+                        max_ind_pkt.pop(0)
+                        max_ind_pkt.append(internal_port_list[ind])
 
-                    if size_pkt > max_size:
-                        max_size = size_pkt
-                        max_ind_size = ind
+                    if size_pkt > max_size[-1]:
+                        max_size.pop(0)
+                        max_size.append(size_pkt)
+                        max_ind_size.pop(0)
+                        max_ind_size.append(internal_port_list[ind])
                     ind += 1
-                out_pkt = internal_port_list[max_ind_pkt]
-                out_size = internal_port_list[max_ind_size]
             
             if total_pkt > 0:
-                max_pkt = max_pkt/total_pkt
+                max_pkt[:] = [ind/total_pkt for ind in max_pkt]
             
             if total_size > 0:
-                max_size = max_size/total_size
+                max_size[:] = [ind/total_size for ind in max_size]
 
-
-            out_list[i].append(out_pkt)
-            out_list[i].append(max_pkt)
-            out_list[i].append(out_size)
-            out_list[i].append(max_size)
+            for ind in range(self.top_num-1, -1, -1):
+                out_list[i].append(max_ind_pkt[ind])
+                out_list[i].append(max_pkt[ind])
+                out_list[i].append(max_ind_size[ind])
+                out_list[i].append(max_size[ind])
 
             external_port_list = list(self.local_stat[ip]["external ports"].keys())
-            max_pkt = 0
-            max_size = 0
+            max_pkt = [0]*self.top_num
+            max_size = [0]*self.top_num
             total_pkt = 0
             total_size = 0
-            max_ind_pkt = 0
-            max_ind_size = 0
+            max_ind_pkt = [-1]*self.top_num
+            max_ind_size = [-1]*self.top_num
             ind = 0
-            out_pkt = 'None'
-            out_size = 'None'
             if len(external_port_list) > 0:
                 for port_n in external_port_list:
                     pkt_n = self.local_stat[ip]["external ports"][port_n]["#packet"]
                     size_pkt = self.local_stat[ip]["external ports"][port_n]["traffic in bytes"]
                     total_pkt += pkt_n
                     total_size += size_pkt
-                    if pkt_n > max_pkt:
-                        max_pkt = pkt_n
-                        max_ind_pkt = ind
+                    if pkt_n > max_pkt[-1]:
+                        max_pkt.pop(0)
+                        max_pkt.append(pkt_n)
+                        max_ind_pkt.pop(0)
+                        max_ind_pkt.append(external_port_list[ind])
 
-                    if size_pkt > max_size:
-                        max_size = size_pkt
-                        max_ind_size = ind
+                    if size_pkt > max_size[-1]:
+                        max_size.pop(0)
+                        max_size.append(size_pkt)
+                        max_ind_size.pop(0)
+                        max_ind_size.append(external_port_list[ind])
                     ind += 1
-                out_pkt = external_port_list[max_ind_pkt]
-                out_size = external_port_list[max_ind_size]
+            
             if total_pkt > 0:
-                max_pkt = max_pkt/total_pkt
+                max_pkt[:] = [ind/total_pkt for ind in max_pkt]
             
             if total_size > 0:
-                max_size = max_size/total_size
-            
-            out_list[i].append(out_pkt)
-            out_list[i].append(max_pkt)
-            out_list[i].append(out_size)
-            out_list[i].append(max_size)
+                max_size[:] = [ind/total_size for ind in max_size]
+
+            for ind in range(self.top_num-1, -1, -1):
+                out_list[i].append(max_ind_pkt[ind])
+                out_list[i].append(max_pkt[ind])
+                out_list[i].append(max_ind_size[ind])
+                out_list[i].append(max_size[ind])
         
         # protocol(bidirection)
             proto_list = list(self.local_stat[ip]["protocols"].keys())
