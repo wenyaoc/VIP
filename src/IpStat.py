@@ -16,7 +16,6 @@ class IpStat:
                         "top "+str(i)+" external port(byte)","top "+str(i)+" external port(byte)%"]
     OUTPUT_HEADER += ["top proto(pkt)", "top proto(pkt)%", "top proto(byte)", "top proto(byte)%"]
     
-    GLOBAL_TRAFFIC_KEYS = ["total incoming traffic by packet", "total incoming traffic by byte", "total outgoing traffic by packet", "total outgoing traffic by byte"]
     HOST_TRAFFIC_KEYS = ["#incoming packet", "incoming traffic in bytes", "#outgoing packet", "outgoing traffic in bytes"] 
     HOST_SPC_KEYS = ["external IPs", "internal ports", "external ports", "protocols"]
     def __init__(self, target_IPs, start, end) -> None:
@@ -24,12 +23,6 @@ class IpStat:
         self.end_time = end
         self.target_IPs = target_IPs
         self.local_stat = {}
-        for key in self.GLOBAL_TRAFFIC_KEYS:
-            self.local_stat[key] = 0
-        # self.local_stat["total incoming traffic by packet"] = 0
-        # self.local_stat["total incoming traffic by byte"] = 0
-        # self.local_stat["total outgoing traffic by packet"] = 0
-        # self.local_stat["total outgoing traffic by byte"] = 0
 
     def __add__(self, other):
         # time check
@@ -48,15 +41,10 @@ class IpStat:
         # result.local_stat["total outgoing traffic by byte"] = self.local_stat["total outgoing traffic by byte"] + other.local_stat["total outgoing traffic by byte"]
 
         # do a deep copy
-        for key, value in self.local_stat.items():
-                result.local_stat[key] = value
+        result.local_stat = self.copy()
 
         for ip, ip_stat in other.local_stat.items():
-            # global traffic stat
-            if ip in self.GLOBAL_TRAFFIC_KEYS:
-                result.local_stat[ip] += other.local_stat[ip]
-                continue
-            # new entry
+            # new ip
             if result.local_stat.get(ip) is None:
                 result.local_stat[ip] = ip_stat
             # existing entry, merge
@@ -184,6 +172,22 @@ class IpStat:
                             result.local_stat[ip]["protocols"][proto][key] -= other.local_stat[ip]["protocols"][proto][key]
         return result
 
+    def copy(self):
+        deep_copy = {}
+        for ip, ip_stat in self.local_stat.items():
+            deep_copy[ip] = {}
+            for key, value in ip_stat.items():
+                if key in self.HOST_TRAFFIC_KEYS:
+                    deep_copy[ip][key] = value
+                else:
+                    deep_copy[ip][key] = {}
+                    for key1, value1 in value.items():
+                        deep_copy[ip][key][key1] = {}
+                        for key2, value2 in value1.items():
+                            deep_copy[ip][key][key1][key2] = value2
+        return deep_copy
+            
+
 
     def update_stat(self, size, eth_src, eth_dst, ip_src, ip_dst, proto, port_src, port_dst):
         
@@ -205,9 +209,6 @@ class IpStat:
 
 
             if ip_src == ip:
-                # outgoing packet
-                self.local_stat["total outgoing traffic by packet"] += 1
-                self.local_stat["total outgoing traffic by byte"] += size
                 
                 self.local_stat[ip]["#outgoing packet"] += 1
                 self.local_stat[ip]["outgoing traffic in bytes"] += size
@@ -254,9 +255,6 @@ class IpStat:
 
             elif ip_dst == ip:
                 # incoming packet
-
-                self.local_stat["total incoming traffic by packet"] += 1
-                self.local_stat["total incoming traffic by byte"] += size
 
                 self.local_stat[ip]["#incoming packet"] += 1
                 self.local_stat[ip]["incoming traffic in bytes"] += size
