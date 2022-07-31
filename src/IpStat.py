@@ -23,12 +23,6 @@ class IpStat:
         self.end_time = end
         self.target_IPs = target_IPs
         self.local_stat = {}
-        for key in self.GLOBAL_TRAFFIC_KEYS:
-            self.local_stat[key] = 0
-        # self.local_stat["total incoming traffic by packet"] = 0
-        # self.local_stat["total incoming traffic by byte"] = 0
-        # self.local_stat["total outgoing traffic by packet"] = 0
-        # self.local_stat["total outgoing traffic by byte"] = 0
 
     def __add__(self, other):
         # time check
@@ -47,7 +41,7 @@ class IpStat:
         # result.local_stat["total outgoing traffic by byte"] = self.local_stat["total outgoing traffic by byte"] + other.local_stat["total outgoing traffic by byte"]
 
         # do a deep copy
-        result.local_stat[key] = self.copy()
+        result.local_stat = self.copy()
 
         for ip, ip_stat in other.local_stat.items():
             # new ip
@@ -181,11 +175,14 @@ class IpStat:
     def copy(self):
         deep_copy = {}
         for ip, ip_stat in self.local_stat.items():
+            deep_copy[ip] = {}
             for key, value in ip_stat.items():
                 if key in self.HOST_TRAFFIC_KEYS:
                     deep_copy[ip][key] = value
                 else:
+                    deep_copy[ip][key] = {}
                     for key1, value1 in value.items():
+                        deep_copy[ip][key][key1] = {}
                         for key2, value2 in value1.items():
                             deep_copy[ip][key][key1][key2] = value2
         return deep_copy
