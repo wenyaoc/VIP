@@ -418,6 +418,10 @@ class IpStat:
             max_ind_size = [-1]*self.top_num
             ind = 0
             if len(internal_port_list) > 0:
+                if len(internal_port_list) < 6:
+                    print(ip,internal_port_list)
+                else:
+                    print(ip,internal_port_list[0:5])
                 for port_n in internal_port_list:
                     pkt_n = self.local_stat[ip]["internal ports"][port_n]["#packet"]
                     size_pkt = self.local_stat[ip]["internal ports"][port_n]["traffic in bytes"]
