@@ -2,7 +2,7 @@ from operator import index
 from os import execv
 from numpy import append, int_
 import pdb
-
+from collections import OrderedDict
 class IpStat:
     top_num = 6
     OUTPUT_HEADER = ["IP", "host type", "start time", "end time", "#incoming packet%", "#outgoing packet%",\
@@ -412,52 +412,27 @@ class IpStat:
             max_size = [0]*self.top_num
             total_pkt = 0
             total_size = 0
-            max_ind_pkt = [-1]*self.top_num
-            max_ind_size = [-1]*self.top_num
-            ind = 0
+            max_ind_pkt = [0]*self.top_num
+            max_ind_size = [0]*self.top_num
             if len(internal_port_list) > 0:
-                if len(internal_port_list) < 6:
-                    print(ip,internal_port_list)
-                else:
-                    print(ip,internal_port_list[0:5])
                 for port_n in internal_port_list:
                     pkt_n = self.local_stat[ip]["internal ports"][port_n]["#packet"]
                     size_pkt = self.local_stat[ip]["internal ports"][port_n]["traffic in bytes"]
                     total_pkt += pkt_n
                     total_size += size_pkt
-                    for indx in range(self.top_num-1, -1, -1):
-                        if pkt_n > max_pkt[indx]:
-                            if indx > 1:
-                                max_pkt[0:indx-1] = max_pkt[1:indx]
-                                max_pkt[indx] = pkt_n
-                                max_ind_pkt[0:indx-1] = max_ind_pkt[1:indx]
-                                max_ind_pkt[indx] = internal_port_list[ind]
-                            elif indx == 0:
-                                max_pkt[indx] = pkt_n
-                                max_ind_pkt[indx] = internal_port_list[ind]
-                            elif indx == 1:
-                                max_pkt[0] = max_pkt[indx]
-                                max_pkt[indx] = pkt_n
-                                max_ind_pkt[0] = max_ind_pkt[indx]
-                                max_ind_pkt[indx] = internal_port_list[ind]
-                            break
-                    for indx in range(self.top_num-1, -1, -1):
-                        if size_pkt > max_size[indx]:
-                            if indx > 1:
-                                max_size[0:indx-1] = max_size[1:indx]
-                                max_size[indx] = size_pkt
-                                max_ind_size[0:indx-1] = max_ind_size[1:indx]
-                                max_ind_size[indx] = internal_port_list[ind]
-                            elif ind == 0:
-                                max_size[indx] = size_pkt
-                                max_ind_size[indx] = internal_port_list[ind]
-                            elif ind == 1:
-                                max_size[0] = max_size[indx]
-                                max_size[indx] = size_pkt
-                                max_ind_size[0] = max_ind_size[indx]
-                                max_ind_size[indx] = internal_port_list[ind]
-                            break
-                    ind += 1
+                port = self.local_stat[ip]["internal ports"]
+                od_pkt = OrderedDict(sorted(port.items(), key=lambda x: x[1]["#packet"], reverse=True))
+                od_pkt_l = list(od_pkt.keys())
+                od_size =  OrderedDict(sorted(port.items(), key=lambda x: x[1]["traffic in bytes"], reverse=True))
+                od_size_l = list(od_size.keys())
+                for ind in range(len(od_pkt_l)):
+                    if ind < self.top_num:
+                        max_pkt[ind] = port[od_pkt_l[ind]]["#packet"]
+                        max_ind_pkt[ind] = od_pkt_l[ind]
+                        max_size[ind] =port[od_size_l[ind]]["traffic in bytes"] 
+                        max_ind_size[ind] = od_size_l[ind]
+                    else:
+                        break
             
             if total_pkt > 0:
                 max_pkt[:] = [ind/total_pkt for ind in max_pkt]
@@ -465,7 +440,7 @@ class IpStat:
             if total_size > 0:
                 max_size[:] = [ind/total_size for ind in max_size]
 
-            for ind in range(self.top_num-1, -1, -1):
+            for ind in range(self.top_num):
                 out_list[i].append(max_ind_pkt[ind])
                 out_list[i].append(max_pkt[ind])
                 out_list[i].append(max_ind_size[ind])
@@ -476,62 +451,27 @@ class IpStat:
             max_size = [0]*self.top_num
             total_pkt = 0
             total_size = 0
-            max_ind_pkt = [-1]*self.top_num
-            max_ind_size = [-1]*self.top_num
-            ind = 0
+            max_ind_pkt = [0]*self.top_num
+            max_ind_size = [0]*self.top_num
             if len(external_port_list) > 0:
                 for port_n in external_port_list:
                     pkt_n = self.local_stat[ip]["external ports"][port_n]["#packet"]
                     size_pkt = self.local_stat[ip]["external ports"][port_n]["traffic in bytes"]
                     total_pkt += pkt_n
                     total_size += size_pkt
-                    for indx in range(self.top_num-1, -1, -1):
-                        if pkt_n > max_pkt[indx]:
-                            if indx > 1:
-                                max_pkt[0:indx-1] = max_pkt[1:indx]
-                                max_pkt[indx] = pkt_n
-                                max_ind_pkt[0:indx-1] = max_ind_pkt[1:indx]
-                                max_ind_pkt[indx] = external_port_list[ind]
-                            elif indx == 0:
-                                max_pkt[indx] = pkt_n
-                                max_ind_pkt[indx] = external_port_list[ind]
-                            elif indx == 1:
-                                max_pkt[0] = max_pkt[indx]
-                                max_pkt[indx] = pkt_n
-                                max_ind_pkt[0] = max_ind_pkt[indx]
-                                max_ind_pkt[indx] = external_port_list[ind]
-                            break
-                    for indx in range(self.top_num-1, -1, -1):
-                        if size_pkt > max_size[indx]:
-                            if indx > 1:
-                                max_size[0:indx-1] = max_size[1:indx]
-                                max_size[indx] = size_pkt
-                                max_ind_size[0:indx-1] = max_ind_size[1:indx]
-                                max_ind_size[indx] = external_port_list[ind]
-                            elif ind == 0:
-                                max_size[indx] = size_pkt
-                                max_ind_size[indx] = external_port_list[ind]
-                            elif ind == 1:
-                                max_size[0] = max_size[indx]
-                                max_size[indx] = size_pkt
-                                max_ind_size[0] = max_ind_size[indx]
-                                max_ind_size[indx] = external_port_list[ind]
-                            break
-
-
-
-                    '''if pkt_n > max_pkt[-1]:
-                        max_pkt.pop(0)
-                        max_pkt.append(pkt_n)
-                        max_ind_pkt.pop(0)
-                        max_ind_pkt.append(external_port_list[ind])
-
-                    if size_pkt > max_size[-1]:
-                        max_size.pop(0)
-                        max_size.append(size_pkt)
-                        max_ind_size.pop(0)
-                        max_ind_size.append(external_port_list[ind])'''
-                    ind += 1
+                port = self.local_stat[ip]["external ports"]
+                od_pkt = OrderedDict(sorted(port.items(), key=lambda x: x[1]["#packet"], reverse=True))
+                od_pkt_l = list(od_pkt.keys())
+                od_size =  OrderedDict(sorted(port.items(), key=lambda x: x[1]["traffic in bytes"], reverse=True))
+                od_size_l = list(od_size.keys())
+                for ind in range(len(od_pkt_l)):
+                    if ind < self.top_num:
+                        max_pkt[ind] = port[od_pkt_l[ind]]["#packet"]
+                        max_ind_pkt[ind] = od_pkt_l[ind]
+                        max_size[ind] =port[od_size_l[ind]]["traffic in bytes"] 
+                        max_ind_size[ind] = od_size_l[ind]
+                    else:
+                        break
             
             if total_pkt > 0:
                 max_pkt[:] = [ind/total_pkt for ind in max_pkt]
@@ -539,7 +479,7 @@ class IpStat:
             if total_size > 0:
                 max_size[:] = [ind/total_size for ind in max_size]
 
-            for ind in range(self.top_num-1, -1, -1):
+            for ind in range(self.top_num):
                 out_list[i].append(max_ind_pkt[ind])
                 out_list[i].append(max_pkt[ind])
                 out_list[i].append(max_ind_size[ind])
